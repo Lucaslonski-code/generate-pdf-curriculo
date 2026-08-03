@@ -11,7 +11,7 @@ app.use(express.static(path.join(process.cwd(), 'public')));
 app.use('/api', pdfRoutes);
 
 const server = app.listen(PORT, () => {
-  console.log(`Resume Generator rodando em http://localhost:${PORT}`);
+  console.log(`Servidor iniciado na porta ${PORT}`);
 });
 
 // The PDF pipeline keeps a single Chromium instance alive for reuse across
