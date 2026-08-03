@@ -1,0 +1,31 @@
+{
+  "name": "resume-generator",
+  "version": "1.0.0",
+  "description": "Transforma um currículo em texto (gerado por IA) em um PDF profissional com um único clique.",
+  "main": "dist/server/index.js",
+  "scripts": {
+    "dev": "tsx watch src/server/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server/index.js",
+    "test": "tsx --test src/server/**/*.test.ts",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "puppeteer": "^22.15.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.9.0",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.10",
+    "eslint": "^9.9.0",
+    "prettier": "^3.3.3",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.3",
+    "typescript-eslint": "^8.3.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

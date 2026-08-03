@@ -1,0 +1,26 @@
+:root {
+  --ui-color-bg: #f4f5f7;
+  --ui-color-surface: #ffffff;
+  --ui-color-ink: #1f2430;
+  --ui-color-muted: #6b7280;
+  --ui-color-border: #d7dae0;
+  --ui-color-accent: #2d5be3;
+  --ui-color-accent-hover: #234bc4;
+  --ui-color-disabled: #9aa0ab;
+  --ui-color-error: #d1453b;
+  --ui-color-error-bg: #fdeceb;
+
+  --ui-font-sans: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --ui-font-mono: 'SFMono-Regular', Consolas, 'Courier New', monospace;
+
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-space-5: 24px;
+
+  --ui-radius-sm: 8px;
+  --ui-radius-pill: 999px;
+
+  --ui-shadow-toast: 0 8px 24px rgba(15, 23, 42, 0.18);
+}

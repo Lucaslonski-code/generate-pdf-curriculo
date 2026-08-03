@@ -1,0 +1,139 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Color tokens */
+  --color-ink: #1a1d23;
+  --color-body: #2b2f38;
+  /* --color-muted is the lightest gray used for real text; it meets
+     WCAG AA contrast (~4.6:1) against a white background. A previous
+     --color-faint token (#9aa0ab, ~2.6:1) failed AA and was removed. */
+  --color-muted: #6b7280;
+  --color-border: #e2e4e9;
+  --color-border-strong: #cdd1d9;
+  --color-surface: #f6f7f9;
+  --color-accent: #2d5be3;
+
+  /* Typography tokens */
+  --font-sans: 'Inter', 'Manrope', 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: 'IBM Plex Sans', Georgia, 'Times New Roman', serif;
+
+  /* Spacing tokens */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Border tokens */
+  --radius-sm: 4px;
+  --radius-pill: 999px;
+  --border-hairline: 1px solid var(--color-border);
+
+  /* Shadow tokens (subtle — this renders as a printed document) */
+  --shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.04);
+
+  /* Size tokens */
+  --size-name: 24pt;
+  --size-role: 12pt;
+  --size-section-title: 10.5pt;
+  --size-body: 10.5pt;
+  --size-meta: 9pt;
+}
+
+/* Page + reset ------------------------------------------------------- */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--size-body);
+  line-height: 1.55;
+  color: var(--color-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Layout shared by every template ------------------------------------ */
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.section-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.paragraph {
+  margin: 0;
+  text-align: justify;
+}
+
+.tag-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+
+.entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin-bottom: 3px;
+}
+
+.entry-description {
+  margin: 2px 0;
+  text-align: justify;
+}
+
+.entry-bullets {
+  margin: var(--space-1) 0 0 0;
+  padding-left: 18px;
+}
+
+.entry-bullets li {
+  margin-bottom: 2px;
+}
+
+.contact-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.contact-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.contact-icon {
+  display: inline-flex;
+}
+
+.contact-icon svg {
+  display: block;
+}
+
+/* Prevent a job entry or section from being split across two pages. */
+.section,
+.entry {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
