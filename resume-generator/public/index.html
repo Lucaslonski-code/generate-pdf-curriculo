@@ -3,25 +3,145 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Resume Generator</title>
+    <title>Resume Generator — Currículo profissional em segundos</title>
+    <meta
+      name="description"
+      content="Cole o texto do seu currículo e baixe um PDF profissional, limpo e pronto para processos seletivos."
+    />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
     <link rel="stylesheet" href="/css/tokens.css" />
     <link rel="stylesheet" href="/css/app.css" />
   </head>
   <body>
-    <main class="app">
-      <label for="resume-input" class="sr-only">Texto do currículo</label>
-      <textarea
-        id="resume-input"
-        class="resume-input"
-        placeholder="Cole aqui o currículo gerado pela IA... (ou arraste um arquivo .txt)"
-        autofocus
-      ></textarea>
+    <a href="#gerador" class="skip-link">Pular para o gerador de currículo</a>
 
-      <div class="actions">
-        <button id="generate-btn" class="generate-btn" type="button">Gerar PDF</button>
-        <span class="hint">Ctrl+Enter para gerar</span>
-      </div>
+    <main class="page">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="container">
+          <p class="eyebrow">Gerador de currículos</p>
+          <h1 id="hero-title" class="hero-title">
+            Transforme seu currículo em um PDF profissional em segundos
+          </h1>
+          <p class="hero-subtitle">
+            Cole o conteúdo do seu currículo, clique em um botão e baixe um documento limpo, bem
+            formatado e pronto para qualquer processo seletivo.
+          </p>
+          <a href="#gerador" class="btn-primary btn-primary--large">Gerar meu currículo</a>
+        </div>
+      </section>
+
+      <section class="how-it-works" aria-labelledby="how-title">
+        <div class="container">
+          <h2 id="how-title" class="section-title">Como funciona</h2>
+          <ol class="steps">
+            <li class="step">
+              <span class="step-number" aria-hidden="true">1</span>
+              <h3 class="step-title">Cole o conteúdo</h3>
+              <p class="step-text">Cole o texto completo do seu currículo no campo indicado.</p>
+            </li>
+            <li class="step">
+              <span class="step-number" aria-hidden="true">2</span>
+              <h3 class="step-title">Clique em gerar</h3>
+              <p class="step-text">Clique em "Gerar PDF" e aguarde alguns segundos.</p>
+            </li>
+            <li class="step">
+              <span class="step-number" aria-hidden="true">3</span>
+              <h3 class="step-title">Baixe o documento</h3>
+              <p class="step-text">
+                Seu currículo em PDF é baixado automaticamente, pronto para uso.
+              </p>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="editor-section" id="gerador" aria-labelledby="editor-title">
+        <div class="container container--wide">
+          <h2 id="editor-title" class="section-title">Seu currículo</h2>
+          <p class="section-subtitle">Cole o texto abaixo. Nós cuidamos da formatação.</p>
+
+          <div class="editor-card">
+            <label for="resume-input" class="sr-only">Texto do currículo</label>
+            <textarea
+              id="resume-input"
+              class="resume-input"
+              placeholder="Cole aqui o conteúdo do seu currículo... (ou arraste um arquivo .txt)"
+              autofocus
+            ></textarea>
+
+            <div class="actions">
+              <button id="generate-btn" class="generate-btn" type="button">Gerar PDF</button>
+              <span class="hint">Ctrl+Enter para gerar</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="benefits" aria-labelledby="benefits-title">
+        <div class="container">
+          <h2 id="benefits-title" class="section-title">Por que usar</h2>
+          <ul class="benefits-grid">
+            <li class="benefit">
+              <span class="benefit-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                  <rect x="5" y="3" width="14" height="18" rx="2" />
+                  <path d="M8 8h8M8 12h8M8 16h5" />
+                </svg>
+              </span>
+              <h3 class="benefit-title">Documento profissional</h3>
+              <p class="benefit-text">Layout limpo, elegante e com boa hierarquia visual.</p>
+            </li>
+            <li class="benefit">
+              <span class="benefit-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                  <path d="M4 5h16M4 12h16M4 19h10" />
+                </svg>
+              </span>
+              <h3 class="benefit-title">Layout limpo</h3>
+              <p class="benefit-text">Tipografia e espaçamento pensados para boa leitura.</p>
+            </li>
+            <li class="benefit">
+              <span class="benefit-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                  <path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14" />
+                </svg>
+              </span>
+              <h3 class="benefit-title">Download imediato</h3>
+              <p class="benefit-text">O PDF é gerado e baixado na hora, sem etapas extras.</p>
+            </li>
+            <li class="benefit">
+              <span class="benefit-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                  <path d="m4 12 5 5L20 6" />
+                </svg>
+              </span>
+              <h3 class="benefit-title">Compatível com processos seletivos</h3>
+              <p class="benefit-text">Formato claro e direto, fácil de ler por recrutadores.</p>
+            </li>
+            <li class="benefit">
+              <span class="benefit-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                  <path d="M13 2 4 14h6l-1 8 9-12h-6z" />
+                </svg>
+              </span>
+              <h3 class="benefit-title">Fácil de utilizar</h3>
+              <p class="benefit-text">Cole o texto e clique em um botão. Só isso.</p>
+            </li>
+          </ul>
+        </div>
+      </section>
     </main>
+
+    <footer class="site-footer">
+      <p>Desenvolvido por Lucas Slonski</p>
+    </footer>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 

@@ -1,25 +1,43 @@
+/* ==========================================================================
+   Reset & base
+   ========================================================================== */
+
 * {
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 html,
 body {
-  height: 100%;
   margin: 0;
 }
 
 body {
-  font-family: var(--ui-font-sans);
-  background: var(--ui-color-bg);
-  color: var(--ui-color-ink);
-}
-
-.app {
-  height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: var(--ui-space-4);
-  padding: var(--ui-space-5);
+  min-height: 100vh;
+  font-family: var(--ui-font-sans);
+  font-size: var(--ui-text-base);
+  line-height: 1.6;
+  background: var(--ui-color-bg);
+  color: var(--ui-color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+p,
+ol,
+ul {
+  margin: 0;
+}
+
+.page {
+  flex: 1 0 auto;
 }
 
 .sr-only {
@@ -34,73 +52,88 @@ body {
   border: 0;
 }
 
-.resume-input {
-  flex: 1;
-  width: 100%;
-  resize: none;
-  padding: var(--ui-space-5);
-  font-size: 15px;
-  line-height: 1.6;
-  font-family: var(--ui-font-mono);
-  color: var(--ui-color-ink);
-  background: var(--ui-color-surface);
-  border: 1px solid var(--ui-color-border);
+.container {
+  max-width: var(--ui-container);
+  margin: 0 auto;
+  padding-inline: var(--ui-space-5);
+}
+
+.container--wide {
+  max-width: var(--ui-container-wide);
+}
+
+/* Skip link: hidden until keyboard-focused, then a clearly visible pill. */
+.skip-link {
+  position: absolute;
+  top: var(--ui-space-3);
+  left: var(--ui-space-3);
+  z-index: 100;
+  padding: var(--ui-space-2) var(--ui-space-4);
+  background: var(--ui-color-ink);
+  color: #ffffff;
+  font-size: var(--ui-text-sm);
+  font-weight: 600;
   border-radius: var(--ui-radius-sm);
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
+  transform: translateY(-150%);
+  transition: transform 0.15s ease;
 }
 
-/* Keep a clearly visible focus indicator for keyboard users instead of
-   suppressing the native outline. */
-.resume-input:focus-visible {
-  border-color: var(--ui-color-accent);
-  outline: 2px solid var(--ui-color-accent);
-  outline-offset: 2px;
+.skip-link:focus-visible {
+  transform: translateY(0);
 }
 
-.resume-input--drag-over {
-  border-color: var(--ui-color-accent);
-  box-shadow: 0 0 0 3px rgba(45, 91, 227, 0.15);
-}
+/* ==========================================================================
+   Shared: primary button (hero CTA + generate button share one visual language)
+   ========================================================================== */
 
-.resume-input::placeholder {
-  color: var(--ui-color-disabled);
-}
-
-.actions {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--ui-space-2);
-}
-
+.btn-primary,
 .generate-btn {
-  min-width: 220px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ui-space-2);
   padding: 14px 32px;
-  font-size: 16px;
+  font-family: inherit;
+  font-size: var(--ui-text-base);
   font-weight: 600;
   color: #ffffff;
+  text-decoration: none;
   background: var(--ui-color-accent);
   border: none;
   border-radius: var(--ui-radius-pill);
   cursor: pointer;
   transition:
     background 0.15s ease,
-    transform 0.05s ease;
+    transform 0.05s ease,
+    box-shadow 0.15s ease;
 }
 
+.btn-primary:hover,
 .generate-btn:hover:not(:disabled) {
   background: var(--ui-color-accent-hover);
+  box-shadow: var(--ui-shadow-md);
 }
 
+.btn-primary:active,
 .generate-btn:active:not(:disabled) {
   transform: scale(0.98);
+}
+
+.btn-primary:focus-visible,
+.generate-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ui-shadow-focus);
+}
+
+.btn-primary--large {
+  padding: 16px 40px;
+  font-size: var(--ui-text-lg);
 }
 
 .generate-btn:disabled {
   background: var(--ui-color-disabled);
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 /* Loading state: swap the label for a small centered spinner. */
@@ -129,12 +162,253 @@ body {
   }
 }
 
-.hint {
-  font-size: 12px;
+/* ==========================================================================
+   Section titles (shared by "how it works" and "benefits")
+   ========================================================================== */
+
+.section-title {
+  font-size: var(--ui-text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ui-color-ink);
+  text-align: center;
+}
+
+.section-subtitle {
+  margin-top: var(--ui-space-2);
+  font-size: var(--ui-text-base);
+  color: var(--ui-color-muted);
+  text-align: center;
+}
+
+/* ==========================================================================
+   Hero
+   ========================================================================== */
+
+.hero {
+  padding-block: var(--ui-space-9) var(--ui-space-8);
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, var(--ui-color-accent-soft), transparent);
+  text-align: center;
+}
+
+.eyebrow {
+  display: inline-block;
+  margin-bottom: var(--ui-space-4);
+  padding: 6px 14px;
+  font-size: var(--ui-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ui-color-accent);
+  background: var(--ui-color-accent-soft);
+  border-radius: var(--ui-radius-pill);
+}
+
+.hero-title {
+  max-width: 18ch;
+  margin-inline: auto;
+  font-size: var(--ui-text-3xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--ui-color-ink);
+}
+
+.hero-subtitle {
+  max-width: 52ch;
+  margin: var(--ui-space-4) auto 0;
+  font-size: var(--ui-text-lg);
   color: var(--ui-color-muted);
 }
 
-/* Toast: non-blocking error feedback instead of alert(). */
+.hero .btn-primary {
+  margin-top: var(--ui-space-6);
+}
+
+/* ==========================================================================
+   How it works
+   ========================================================================== */
+
+.how-it-works {
+  padding-block: var(--ui-space-8);
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--ui-space-6);
+  margin-top: var(--ui-space-7);
+  list-style: none;
+  padding: 0;
+}
+
+.step {
+  text-align: center;
+}
+
+.step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: var(--ui-space-3);
+  font-size: var(--ui-text-lg);
+  font-weight: 700;
+  color: var(--ui-color-accent);
+  background: var(--ui-color-accent-soft);
+  border-radius: 50%;
+}
+
+.step-title {
+  font-size: var(--ui-text-lg);
+  font-weight: 600;
+  color: var(--ui-color-ink);
+}
+
+.step-text {
+  margin-top: var(--ui-space-2);
+  color: var(--ui-color-muted);
+}
+
+/* ==========================================================================
+   Editor (the main event)
+   ========================================================================== */
+
+.editor-section {
+  padding-block: var(--ui-space-8);
+  background: var(--ui-color-surface-alt);
+}
+
+.editor-card {
+  margin-top: var(--ui-space-7);
+  padding: var(--ui-space-6);
+  background: var(--ui-color-surface);
+  border: 1px solid var(--ui-color-border);
+  border-radius: var(--ui-radius-lg);
+  box-shadow: var(--ui-shadow-lg);
+}
+
+.resume-input {
+  width: 100%;
+  min-height: 340px;
+  resize: vertical;
+  padding: var(--ui-space-5);
+  font-family: var(--ui-font-mono);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ui-color-ink);
+  background: var(--ui-color-surface);
+  border: 1px solid var(--ui-color-border);
+  border-radius: var(--ui-radius-md);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.resume-input:hover {
+  border-color: var(--ui-color-border-strong);
+}
+
+.resume-input:focus-visible {
+  outline: none;
+  border-color: var(--ui-color-accent);
+  box-shadow: var(--ui-shadow-focus);
+}
+
+.resume-input--drag-over {
+  border-color: var(--ui-color-accent);
+  box-shadow: var(--ui-shadow-focus);
+}
+
+.resume-input::placeholder {
+  color: var(--ui-color-disabled);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ui-space-2);
+  margin-top: var(--ui-space-5);
+}
+
+.hint {
+  font-size: var(--ui-text-xs);
+  color: var(--ui-color-subtle);
+}
+
+/* ==========================================================================
+   Benefits
+   ========================================================================== */
+
+.benefits {
+  padding-block: var(--ui-space-8) var(--ui-space-9);
+}
+
+.benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--ui-space-6);
+  margin-top: var(--ui-space-7);
+  list-style: none;
+  padding: 0;
+}
+
+.benefit {
+  padding: var(--ui-space-5);
+  text-align: center;
+}
+
+.benefit-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: var(--ui-space-3);
+  color: var(--ui-color-accent);
+  background: var(--ui-color-accent-soft);
+  border-radius: var(--ui-radius-md);
+}
+
+.benefit-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.benefit-title {
+  font-size: var(--ui-text-base);
+  font-weight: 600;
+  color: var(--ui-color-ink);
+}
+
+.benefit-text {
+  margin-top: var(--ui-space-2);
+  font-size: var(--ui-text-sm);
+  color: var(--ui-color-muted);
+}
+
+/* ==========================================================================
+   Footer
+   ========================================================================== */
+
+.site-footer {
+  flex-shrink: 0;
+  padding: var(--ui-space-6) var(--ui-space-5);
+  border-top: 1px solid var(--ui-color-border);
+  text-align: center;
+}
+
+.site-footer p {
+  font-size: var(--ui-text-sm);
+  color: var(--ui-color-subtle);
+}
+
+/* ==========================================================================
+   Toast: non-blocking error feedback instead of alert()
+   ========================================================================== */
+
 .toast {
   position: fixed;
   left: 50%;
@@ -147,7 +421,7 @@ body {
   color: var(--ui-color-error);
   border: 1px solid rgba(209, 69, 59, 0.25);
   border-radius: var(--ui-radius-sm);
-  font-size: 14px;
+  font-size: var(--ui-text-sm);
   text-align: center;
   box-shadow: var(--ui-shadow-toast);
   opacity: 0;
@@ -162,12 +436,54 @@ body {
   transform: translate(-50%, 0);
 }
 
+/* ==========================================================================
+   Responsiveness
+   ========================================================================== */
+
+@media (max-width: 860px) {
+  .steps,
+  .benefits-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 640px) {
-  .app {
-    padding: var(--ui-space-3);
+  .hero {
+    padding-block: var(--ui-space-8) var(--ui-space-7);
   }
 
+  .how-it-works,
+  .editor-section,
+  .benefits {
+    padding-block: var(--ui-space-7);
+  }
+
+  .steps,
+  .benefits-grid {
+    grid-template-columns: 1fr;
+    gap: var(--ui-space-5);
+  }
+
+  .editor-card {
+    padding: var(--ui-space-4);
+  }
+
+  .resume-input {
+    min-height: 260px;
+  }
+
+  .btn-primary,
   .generate-btn {
+    width: 100%;
+  }
+
+  .hero .btn-primary {
+    width: auto;
+  }
+}
+
+@media (max-width: 420px) {
+  .hero .btn-primary {
     width: 100%;
   }
 }

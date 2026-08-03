@@ -1,26 +1,56 @@
 :root {
-  --ui-color-bg: #f4f5f7;
+  /* Color palette — deliberately quiet: white / near-black / gray / soft blue */
+  --ui-color-bg: #ffffff;
   --ui-color-surface: #ffffff;
-  --ui-color-ink: #1f2430;
-  --ui-color-muted: #6b7280;
-  --ui-color-border: #d7dae0;
+  --ui-color-surface-alt: #f7f8fa;
+  --ui-color-ink: #14161a;
+  --ui-color-muted: #5b6472;
+  --ui-color-subtle: #6a7180; /* ~4.9:1 sobre branco — passa AA em texto normal (hint/footer) */
+  --ui-color-border: #e3e5ea;
+  --ui-color-border-strong: #d3d7de;
+
   --ui-color-accent: #2d5be3;
   --ui-color-accent-hover: #234bc4;
+  --ui-color-accent-soft: #eef2fd;
+
   --ui-color-disabled: #9aa0ab;
   --ui-color-error: #d1453b;
   --ui-color-error-bg: #fdeceb;
 
+  /* Typography — a single professional Google Font (Inter), loaded in index.html */
   --ui-font-sans: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --ui-font-mono: 'SFMono-Regular', Consolas, 'Courier New', monospace;
 
+  --ui-text-xs: 0.75rem; /* 12px */
+  --ui-text-sm: 0.875rem; /* 14px */
+  --ui-text-base: 1rem; /* 16px */
+  --ui-text-lg: 1.125rem; /* 18px */
+  --ui-text-xl: 1.375rem; /* 22px */
+  --ui-text-2xl: 1.75rem; /* 28px */
+  --ui-text-3xl: clamp(2rem, 1.5rem + 2vw, 2.75rem);
+
+  /* Spacing scale */
   --ui-space-1: 4px;
   --ui-space-2: 8px;
   --ui-space-3: 12px;
   --ui-space-4: 16px;
   --ui-space-5: 24px;
+  --ui-space-6: 32px;
+  --ui-space-7: 48px;
+  --ui-space-8: 64px;
+  --ui-space-9: 96px;
 
   --ui-radius-sm: 8px;
+  --ui-radius-md: 14px;
+  --ui-radius-lg: 20px;
   --ui-radius-pill: 999px;
 
+  --ui-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --ui-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.06);
+  --ui-shadow-lg: 0 24px 64px rgba(15, 23, 42, 0.12);
   --ui-shadow-toast: 0 8px 24px rgba(15, 23, 42, 0.18);
+  --ui-shadow-focus: 0 0 0 4px rgba(45, 91, 227, 0.15);
+
+  --ui-container: 760px;
+  --ui-container-wide: 860px;
 }
