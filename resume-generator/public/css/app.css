@@ -46,7 +46,9 @@ body {
   background: var(--ui-color-surface);
   border: 1px solid var(--ui-color-border);
   border-radius: var(--ui-radius-sm);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 /* Keep a clearly visible focus indicator for keyboard users instead of
@@ -83,7 +85,9 @@ body {
   border: none;
   border-radius: var(--ui-radius-pill);
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.05s ease;
+  transition:
+    background 0.15s ease,
+    transform 0.05s ease;
 }
 
 .generate-btn:hover:not(:disabled) {
@@ -148,7 +152,9 @@ body {
   box-shadow: var(--ui-shadow-toast);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 
 .toast--visible {

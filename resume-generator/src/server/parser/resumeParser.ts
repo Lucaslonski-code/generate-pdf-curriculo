@@ -36,7 +36,12 @@ interface RawSection {
 }
 
 /** Consumes the name, optional role and optional contact line from the top of the resume. */
-function parseHeader(lines: string[]): { name: string; role?: string; contact: ContactInfo; cursor: number } {
+function parseHeader(lines: string[]): {
+  name: string;
+  role?: string;
+  contact: ContactInfo;
+  cursor: number;
+} {
   let cursor = 0;
   const name = lines[cursor]?.trim() ?? '';
   cursor++;
@@ -64,7 +69,10 @@ function parseHeader(lines: string[]): { name: string; role?: string; contact: C
 }
 
 /** Groups the remaining lines into raw sections based on recognized headings. */
-function splitIntoRawSections(lines: string[]): { rawSections: RawSection[]; introLines: string[] } {
+function splitIntoRawSections(lines: string[]): {
+  rawSections: RawSection[];
+  introLines: string[];
+} {
   const rawSections: RawSection[] = [];
   const introLines: string[] = [];
   let current: RawSection | null = null;

@@ -60,9 +60,17 @@ function classifyToken(token: string, contact: ContactInfo): void {
  * of preference) and classifies each token into a ContactInfo field.
  */
 export function parseContactLine(line: string): ContactInfo {
-  const pipeOrDot = line.split(/[|•]/).map((part) => part.trim()).filter(Boolean);
+  const pipeOrDot = line
+    .split(/[|•]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
   const tokens =
-    pipeOrDot.length > 1 ? pipeOrDot : line.split(/,\s*/).map((part) => part.trim()).filter(Boolean);
+    pipeOrDot.length > 1
+      ? pipeOrDot
+      : line
+          .split(/,\s*/)
+          .map((part) => part.trim())
+          .filter(Boolean);
 
   const contact: ContactInfo = {};
   for (const token of tokens.length > 0 ? tokens : [line]) {

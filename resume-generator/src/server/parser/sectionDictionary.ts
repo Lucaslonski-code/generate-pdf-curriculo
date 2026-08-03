@@ -9,62 +9,62 @@ import { normalizeHeading } from './normalize';
 const SECTION_VARIANTS: Record<string, SectionType> = {
   // Summary
   'resumo profissional': 'summary',
-  'resumo': 'summary',
-  'sobre': 'summary',
+  resumo: 'summary',
+  sobre: 'summary',
   'sobre mim': 'summary',
   'perfil profissional': 'summary',
-  'perfil': 'summary',
-  'objetivo': 'summary',
+  perfil: 'summary',
+  objetivo: 'summary',
   'objetivo profissional': 'summary',
-  'summary': 'summary',
+  summary: 'summary',
   'professional summary': 'summary',
 
   // Skills
   'competencias tecnicas': 'skills',
-  'competencias': 'skills',
-  'habilidades': 'skills',
+  competencias: 'skills',
+  habilidades: 'skills',
   'habilidades tecnicas': 'skills',
-  'skills': 'skills',
-  'tecnologias': 'skills',
-  'ferramentas': 'skills',
+  skills: 'skills',
+  tecnologias: 'skills',
+  ferramentas: 'skills',
   'conhecimentos tecnicos': 'skills',
   'hard skills': 'skills',
   'technical skills': 'skills',
 
   // Experience
-  'experiencia': 'experience',
+  experiencia: 'experience',
   'experiencia profissional': 'experience',
   'experiencias profissionais': 'experience',
   'historico profissional': 'experience',
-  'experience': 'experience',
+  experience: 'experience',
   'work experience': 'experience',
   'professional experience': 'experience',
 
   // Projects
-  'projetos': 'projects',
+  projetos: 'projects',
   'projetos relevantes': 'projects',
   'projetos pessoais': 'projects',
-  'projects': 'projects',
+  projects: 'projects',
 
   // Education
-  'formacao': 'education',
+  formacao: 'education',
   'formacao academica': 'education',
-  'educacao': 'education',
-  'education': 'education',
+  educacao: 'education',
+  education: 'education',
   'academic background': 'education',
 
   // Certifications
-  'certificacoes': 'certifications',
-  'certificacao': 'certifications',
-  'certificados': 'certifications',
-  'certifications': 'certifications',
-  'certificates': 'certifications',
+  certificacoes: 'certifications',
+  certificacao: 'certifications',
+  certificados: 'certifications',
+  certifications: 'certifications',
+  certificates: 'certifications',
   'cursos e certificacoes': 'certifications',
 
   // Languages
-  'idiomas': 'languages',
-  'idioma': 'languages',
-  'languages': 'languages',
+  idiomas: 'languages',
+  idioma: 'languages',
+  languages: 'languages',
 };
 
 /**
