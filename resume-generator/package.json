@@ -1,40 +1,32 @@
 {
   "name": "resume-generator",
   "version": "1.0.0",
-  "description": "Transforma um currículo em texto (gerado por IA) em um PDF profissional com um único clique.",
-  "main": "dist/server/index.js",
+  "description": "Transforma um currículo em texto em um PDF profissional com um único clique.",
   "scripts": {
-    "dev": "tsx watch src/server/index.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/server/index.js",
+    "dev": "vercel dev",
+    "build": "tsc --noEmit -p tsconfig.json",
     "test": "tsx --test src/server/**/*.test.ts",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
   "dependencies": {
-    "cors": "^2.8.6",
-    "express": "^4.22.2",
-    "marked": "^18.0.7",
-    "multer": "^2.2.0",
-    "puppeteer": "^22.15.0"
+    "@sparticuz/chromium": "^123.0.1",
+    "puppeteer-core": "^22.15.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
-    "@types/cors": "^2.8.19",
-    "@types/express": "^4.17.25",
-    "@types/marked": "^5.0.2",
-    "@types/multer": "^2.2.0",
     "@types/node": "^20.19.43",
+    "@vercel/node": "^3.2.24",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.9.0",
     "prettier": "^3.9.6",
     "tsx": "^4.23.5",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.65.0"
+    "typescript-eslint": "^8.65.0",
+    "vercel": "^37.6.2"
   },
   "engines": {
-    "node": ">=18"
+    "node": "20.x"
   }
 }
-

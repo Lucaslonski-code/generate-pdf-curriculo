@@ -1,0 +1,10 @@
+{
+  "outputDirectory": "public",
+  "functions": {
+    "api/generate-pdf.ts": {
+      "memory": 1024,
+      "maxDuration": 30,
+      "includeFiles": "public/templates/**"
+    }
+  }
+}

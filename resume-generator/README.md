@@ -38,36 +38,33 @@ npm install
 
 # Executando localmente
 
-Modo de desenvolvimento:
+Modo de desenvolvimento (simula o ambiente Serverless do Vercel, incluindo
+as funções em `/api` e os arquivos estáticos de `public/`):
 
 ```bash
 npm run dev
 ```
 
-Modo de produção:
-
-```bash
-npm run build
-
-npm start
-```
+Este projeto não possui mais um servidor Node persistente (Express foi
+removido) — não existe `npm start`. Para publicar, veja a seção **Deploy**.
 
 ---
 
 # Estrutura do projeto
 
 ```
-src/
+api/
+    generate-pdf.ts  (Serverless Function — substitui o antigo routes/)
 
-parser/
-templates/
-pdf/
-routes/
-services/
-utils/
+src/
+  server/
+    parser/
+    templates/
+    pdf/
+    services/
+    utils/
 
 public/
-tests/
 ```
 
 Cada diretório possui apenas uma responsabilidade.
@@ -194,15 +191,17 @@ Somente após todas essas etapas considere a alteração concluída.
 
 # Deploy
 
-O projeto pode ser executado localmente ou publicado em uma plataforma compatível com aplicações Node.js.
+O projeto é publicado no Vercel como Serverless Functions (não há mais um
+processo Node persistente para hospedar).
 
-Após o deploy:
-
-1. Abra a aplicação.
-2. Cole um currículo gerado por IA.
-3. Clique em **Gerar PDF**.
-4. Confirme que o download do PDF ocorre corretamente.
-5. Valide visualmente o documento gerado.
+1. Faça `git push` para o repositório conectado ao Vercel.
+2. O Vercel detecta `api/generate-pdf.ts` automaticamente e publica os
+   arquivos estáticos de `public/` (configurado em `vercel.json`).
+3. Abra a aplicação publicada.
+4. Cole um currículo.
+5. Clique em **Gerar PDF**.
+6. Confirme que o download do PDF ocorre corretamente.
+7. Valide visualmente o documento gerado.
 
 Sempre realize um teste completo após cada novo deploy.
 

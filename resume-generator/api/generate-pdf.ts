@@ -1,7 +1,5 @@
-import { Router, Request, Response } from 'express';
-import { createResumePdf } from '../services/pdf.service';
-
-const router = Router();
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { createResumePdf } from '../src/server/services/pdf.service';
 
 // A real resume rarely exceeds a few thousand characters. This cap is a
 // defensive guard against pathological input (e.g. an entire book pasted
@@ -13,8 +11,23 @@ interface GeneratePdfRequestBody {
   template?: string;
 }
 
-router.post('/generate-pdf', async (req: Request, res: Response) => {
-  const { text, template } = req.body as GeneratePdfRequestBody;
+/**
+ * Vercel serverless function served at `/api/generate-pdf` (the filename
+ * IS the route — no manual route registration needed). This preserves the
+ * exact contract the frontend already calls: same path, same request
+ * shape, same response headers/status codes as the previous Express route.
+ *
+ * The Node.js runtime (@vercel/node) auto-parses the JSON body into
+ * `req.body`, equivalent to the `express.json()` middleware used before.
+ */
+export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    res.status(405).json({ error: 'Método não permitido.' });
+    return;
+  }
+
+  const { text, template } = (req.body ?? {}) as GeneratePdfRequestBody;
 
   if (!text || !text.trim()) {
     res.status(400).json({ error: 'O texto do currículo é obrigatório.' });
@@ -32,11 +45,9 @@ router.post('/generate-pdf', async (req: Request, res: Response) => {
     const pdfBuffer = await createResumePdf(text, template);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="curriculo.pdf"');
-    res.send(pdfBuffer);
+    res.status(200).send(pdfBuffer);
   } catch (error) {
     console.error('Erro ao gerar PDF:', error);
     res.status(500).json({ error: 'Não foi possível gerar o PDF. Tente novamente.' });
   }
-});
-
-export default router;
+}

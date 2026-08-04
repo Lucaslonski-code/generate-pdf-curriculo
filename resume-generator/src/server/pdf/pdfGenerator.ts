@@ -1,37 +1,40 @@
-import puppeteer, { Browser } from 'puppeteer';
+import chromium from '@sparticuz/chromium';
+import puppeteer, { Browser } from 'puppeteer-core';
 
 const PAGE_LOAD_TIMEOUT_MS = 15_000;
 
 /**
- * Launching a fresh Chromium process per PDF (the previous implementation)
- * costs several hundred ms to ~1s of pure startup overhead on every
- * request. A single instance is launched lazily on first use and reused
- * for the lifetime of the process; each request only opens/closes its
- * own `page`, which is cheap.
+ * Vercel Serverless Functions run in a Node.js Lambda-style environment:
+ * there is no system Chrome installed, and the deployed function bundle
+ * has a strict size budget that the full `puppeteer` package (which
+ * bundles a ~300MB browser download) does not fit into.
  *
- * `--no-sandbox` / `--disable-setuid-sandbox` are required to run Chromium
- * inside most containerized environments (Docker, CI). If you deploy this
- * outside a container, prefer running the process as a non-root user over
- * disabling the sandbox.
+ * `puppeteer-core` ships no browser at all, and `@sparticuz/chromium`
+ * provides a Chromium build compressed specifically to fit that budget,
+ * unpacked to /tmp on cold start — no network download, no install step,
+ * no reliance on a cached or locally installed browser.
+ *
+ * The same container is reused across consecutive ("warm") invocations of
+ * the same function, so — exactly like the previous long-running-server
+ * version — a single Chromium instance is launched lazily and reused for
+ * the lifetime of the container; each request only opens/closes its own
+ * `page`, which is cheap.
  */
 let browserPromise: Promise<Browser> | null = null;
 
 function getBrowser(): Promise<Browser> {
   if (!browserPromise) {
-    browserPromise = puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
+    browserPromise = (async () => {
+      const executablePath = await chromium.executablePath();
+      return puppeteer.launch({
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath,
+        headless: chromium.headless,
+      });
+    })();
   }
   return browserPromise;
-}
-
-/** Closes the shared browser instance. Call once during graceful shutdown. */
-export async function closeBrowser(): Promise<void> {
-  if (!browserPromise) return;
-  const browser = await browserPromise;
-  browserPromise = null;
-  await browser.close();
 }
 
 /**
