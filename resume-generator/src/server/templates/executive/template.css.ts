@@ -1,0 +1,87 @@
+/**
+ * CSS for the executive template, embedded as a TS module instead of a
+ * standalone .css file read from disk. Serverless Functions bundle their
+ * dependency graph via static analysis of imports; a runtime fs.readFileSync
+ * call (the previous approach) is invisible to that analysis and silently
+ * missing from the deployed bundle. A plain import is always included
+ * correctly, in every environment (local, Vercel, or otherwise), with no
+ * reliance on process.cwd(), outputDirectory, or includeFiles.
+ */
+export const templateCss = `
+/* Executive — formal and centered, for senior/leadership positioning. */
+
+.header {
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-2);
+  border-top: 3px solid var(--color-ink);
+  border-bottom: 1px solid var(--color-ink);
+  text-align: center;
+}
+
+.name {
+  margin: 0 0 2px 0;
+  font-family: var(--font-serif);
+  font-size: 23pt;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--color-ink);
+}
+
+.role {
+  margin: 0 0 var(--space-2) 0;
+  font-size: 11pt;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.contact-row {
+  justify-content: center;
+  color: var(--color-muted);
+  font-size: var(--size-meta);
+}
+
+.contact-icon {
+  color: var(--color-ink);
+}
+
+.section-title {
+  margin: 0 0 var(--space-2) 0;
+  font-family: var(--font-serif);
+  font-size: 10.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.6px;
+  color: var(--color-ink);
+  text-align: center;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--color-border-strong);
+}
+
+.entry-title {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 11pt;
+  color: var(--color-ink);
+}
+
+.entry-meta {
+  font-size: var(--size-meta);
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.tag-list {
+  justify-content: center;
+}
+
+.tag-list li {
+  font-size: 9.5pt;
+  color: var(--color-ink);
+  border: 1px solid var(--color-border-strong);
+  padding: 3px 12px;
+  border-radius: var(--radius-pill);
+}
+`;

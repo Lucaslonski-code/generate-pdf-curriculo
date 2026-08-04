@@ -1,0 +1,88 @@
+/**
+ * CSS for the ats template, embedded as a TS module instead of a
+ * standalone .css file read from disk. Serverless Functions bundle their
+ * dependency graph via static analysis of imports; a runtime fs.readFileSync
+ * call (the previous approach) is invisible to that analysis and silently
+ * missing from the deployed bundle. A plain import is always included
+ * correctly, in every environment (local, Vercel, or otherwise), with no
+ * reliance on process.cwd(), outputDirectory, or includeFiles.
+ */
+export const templateCss = `
+/* ATS — optimized for automated parsing. No icons, no color, no
+   decorative borders beyond a single hairline. Everything an ATS
+   bot needs is plain, high-contrast text in reading order. */
+
+.header {
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-1);
+  border-bottom: 1px solid #000000;
+}
+
+.name {
+  margin: 0 0 2px 0;
+  font-family: Arial, Helvetica, var(--font-sans);
+  font-size: 20pt;
+  font-weight: 700;
+  color: #000000;
+}
+
+.role {
+  margin: 0 0 var(--space-2) 0;
+  font-size: 11pt;
+  font-weight: 400;
+  color: #000000;
+}
+
+.contact-row {
+  color: #000000;
+  font-size: 10pt;
+}
+
+.contact-icon {
+  display: none;
+}
+
+.contact-item:not(:last-child)::after {
+  content: ' | ';
+  color: #000000;
+}
+
+.section-title {
+  margin: 0 0 var(--space-2) 0;
+  font-size: 11pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #000000;
+}
+
+.entry-title {
+  font-weight: 700;
+  font-size: 11pt;
+  color: #000000;
+}
+
+.entry-meta {
+  font-size: 10pt;
+  color: #000000;
+}
+
+.tag-list li {
+  font-size: 10pt;
+  color: #000000;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.tag-list li:not(:last-child)::after {
+  content: ', ';
+}
+
+body,
+.paragraph,
+.entry-description,
+.entry-bullets li {
+  font-family: Arial, Helvetica, var(--font-sans);
+  color: #000000;
+}
+`;

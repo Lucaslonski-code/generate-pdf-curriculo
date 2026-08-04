@@ -7,8 +7,8 @@ import { renderContactRow } from './contactRow';
 /**
  * Renders the shared document skeleton (header + sections) for a given
  * template id. All four templates reuse this exact HTML; every visual
- * difference between them lives exclusively in their `template.css` file
- * (see public/templates/<id>/template.css). This avoids duplicating
+ * difference between them lives exclusively in their `template.css.ts`
+ * module (see templates/<id>/template.css.ts). This avoids duplicating
  * markup four times while still giving each template its own renderer
  * entry point (templates/<id>/renderer.ts) for the day one of them needs
  * a genuinely different structure.
