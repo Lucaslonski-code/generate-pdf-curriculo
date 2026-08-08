@@ -1,5 +1,6 @@
 import chromium from '@sparticuz/chromium';
 import puppeteer, { Browser } from 'puppeteer-core';
+import { runChromiumDiagnostics } from './chromiumDiagnostics';
 
 const PAGE_LOAD_TIMEOUT_MS = 15_000;
 
@@ -26,12 +27,41 @@ function getBrowser(): Promise<Browser> {
   if (!browserPromise) {
     browserPromise = (async () => {
       const executablePath = await chromium.executablePath();
-      return puppeteer.launch({
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath,
-        headless: chromium.headless,
-      });
+
+      // TEMPORARY DIAGNOSTIC INSTRUMENTATION — see chromiumDiagnostics.ts.
+      // Collects read-only runtime evidence (env facts, filesystem state,
+      // ldd/file output when available) to determine whether the Chromium
+      // payload was bundled/extracted correctly or is OS-incompatible.
+      // Remove this call (and the chromiumDiagnostics.ts file) once the
+      // root cause has been confirmed from real Vercel Function logs.
+      runChromiumDiagnostics(executablePath);
+
+      try {
+        return await puppeteer.launch({
+          args: chromium.args,
+          defaultViewport: chromium.defaultViewport,
+          executablePath,
+          headless: chromium.headless,
+          // TEMPORARY: pipes the browser subprocess's own stdout/stderr into
+          // this Function's logs. This can surface the dynamic linker's full
+          // complaint (possibly more than just libnss3.so) instead of only
+          // the summarized message Puppeteer itself throws. Safe to remove
+          // once diagnosis is complete — it does not change PDF output.
+          dumpio: true,
+        });
+      } catch (error) {
+        // TEMPORARY DIAGNOSTIC LOGGING ONLY. The error below is logged in
+        // full and then re-thrown completely unchanged on the next line —
+        // this does not alter the function's behavior or response in any
+        // way; it only makes the existing failure more visible in logs.
+        console.error('[chromium-diagnostics] puppeteer.launch() threw. Full error follows:');
+        console.error('[chromium-diagnostics] error.message:', error instanceof Error ? error.message : error);
+        console.error(
+          '[chromium-diagnostics] error.stack:',
+          error instanceof Error ? error.stack : '(not an Error instance)'
+        );
+        throw error;
+      }
     })();
   }
   return browserPromise;
