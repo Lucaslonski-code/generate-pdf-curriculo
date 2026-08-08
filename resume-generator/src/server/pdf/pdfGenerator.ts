@@ -41,7 +41,15 @@ function getBrowser(): Promise<Browser> {
           args: chromium.args,
           defaultViewport: chromium.defaultViewport,
           executablePath,
-          headless: chromium.headless,
+          // @sparticuz/chromium's `headless` getter can return the literal
+          // "new" — the flag older Puppeteer versions used to opt into the
+          // new headless renderer. The installed puppeteer-core (22.x)
+          // already defaults to that same renderer and only accepts
+          // `boolean | "shell" | undefined`; "new" is no longer a valid
+          // literal there. Normalizing "new" to `true` keeps the exact same
+          // intent (use the new headless mode) while satisfying the actual
+          // installed type.
+          headless: chromium.headless === 'new' ? true : chromium.headless,
           // TEMPORARY: pipes the browser subprocess's own stdout/stderr into
           // this Function's logs. This can surface the dynamic linker's full
           // complaint (possibly more than just libnss3.so) instead of only
