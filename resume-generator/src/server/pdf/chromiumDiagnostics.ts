@@ -78,6 +78,20 @@ function findFile(rootPath: string, targetName: string, maxDepth: number, maxRes
   return results;
 }
 
+/** Walks up from a file inside a package until it finds that package's own package.json (its root). */
+function findPackageRoot(startFile: string): string {
+  let dir = path.dirname(startFile);
+  for (let i = 0; i < 10; i++) {
+    if (fs.existsSync(path.join(dir, 'package.json'))) {
+      return dir;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return path.dirname(startFile);
+}
+
 /**
  * Runs a read-only diagnostic command without ever throwing. If the tool
  * does not exist in the runtime, that fact is reported explicitly instead
@@ -130,20 +144,34 @@ export function runChromiumDiagnostics(executablePath: string): void {
     fs.readdirSync('/tmp').filter((name) => /chrom/i.test(name))
   );
 
-  safeLog('@sparticuz/chromium package location + top-level contents as deployed', () => {
+  safeLog('@sparticuz/chromium: entry file resolved by require.resolve()', () => require.resolve('@sparticuz/chromium'));
+
+  safeLog('@sparticuz/chromium package ROOT (walked up to nearest package.json) + full top-level listing', () => {
     const pkgEntry = require.resolve('@sparticuz/chromium');
-    const pkgDir = path.dirname(pkgEntry);
-    return { pkgEntry, pkgDir, topLevel: listDir(pkgDir) };
+    const pkgRoot = findPackageRoot(pkgEntry);
+    return { pkgEntry, pkgRoot, topLevel: listDir(pkgRoot, 200) };
+  });
+
+  safeLog('@sparticuz/chromium package.json — name/version/scripts (public metadata, no secrets)', () => {
+    const pkgEntry = require.resolve('@sparticuz/chromium');
+    const pkgRoot = findPackageRoot(pkgEntry);
+    const raw = fs.readFileSync(path.join(pkgRoot, 'package.json'), 'utf-8');
+    const parsed = JSON.parse(raw) as { name?: string; version?: string; scripts?: Record<string, string> };
+    return { name: parsed.name, version: parsed.version, scripts: parsed.scripts ?? {} };
   });
 
   safeLog('search for libnss3.so under dirname(executablePath) [depth<=3]', () =>
     findFile(path.dirname(executablePath), 'libnss3.so', 3, 5)
   );
 
-  safeLog('search for libnss3.so under the @sparticuz/chromium package dir [depth<=4]', () => {
-    const pkgDir = path.dirname(require.resolve('@sparticuz/chromium'));
-    return findFile(pkgDir, 'libnss3.so', 4, 5);
-  });
+  safeLog(
+    'search for libnss3.so under the @sparticuz/chromium package ROOT (not just build/) [depth<=6]',
+    () => {
+      const pkgEntry = require.resolve('@sparticuz/chromium');
+      const pkgRoot = findPackageRoot(pkgEntry);
+      return findFile(pkgRoot, 'libnss3.so', 6, 10);
+    }
+  );
 
   safeLog('ldd(executablePath) — lists dynamic deps and whether each resolves', () =>
     runReadOnlyCommand('ldd', [executablePath])
