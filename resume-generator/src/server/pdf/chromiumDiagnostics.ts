@@ -160,6 +160,19 @@ export function runChromiumDiagnostics(executablePath: string): void {
     return { name: parsed.name, version: parsed.version, scripts: parsed.scripts ?? {} };
   });
 
+  safeLog('@sparticuz/chromium package ROOT /bin — full contents (name + size, no content read)', () => {
+    const pkgEntry = require.resolve('@sparticuz/chromium');
+    const pkgRoot = findPackageRoot(pkgEntry);
+    const binDir = path.join(pkgRoot, 'bin');
+    if (!fs.existsSync(binDir)) return 'bin/ does not exist under package root';
+    const entries = fs.readdirSync(binDir, { withFileTypes: true });
+    return entries.map((entry) => {
+      if (entry.isDirectory()) return { name: `${entry.name}/`, type: 'dir' };
+      const stat = fs.statSync(path.join(binDir, entry.name));
+      return { name: entry.name, type: 'file', sizeBytes: stat.size };
+    });
+  });
+
   safeLog('search for libnss3.so under dirname(executablePath) [depth<=3]', () =>
     findFile(path.dirname(executablePath), 'libnss3.so', 3, 5)
   );
