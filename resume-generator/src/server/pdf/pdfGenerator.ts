@@ -1,6 +1,7 @@
 import chromium from '@sparticuz/chromium';
 import puppeteer, { Browser } from 'puppeteer-core';
 import { runChromiumDiagnostics } from './chromiumDiagnostics';
+import { ensureNssLibrariesExtracted } from './chromiumNssFix';
 
 const PAGE_LOAD_TIMEOUT_MS = 15_000;
 
@@ -28,12 +29,19 @@ function getBrowser(): Promise<Browser> {
     browserPromise = (async () => {
       const executablePath = await chromium.executablePath();
 
+      // PERMANENT FIX — see chromiumNssFix.ts for the full root-cause
+      // explanation. @sparticuz/chromium's own extraction of the NSS
+      // library archive (bin/al2023.tar.br or bin/al2.tar.br) does not
+      // run in this environment; this performs that extraction directly
+      // so libnss3.so and its siblings exist before launch() is attempted.
+      ensureNssLibrariesExtracted(executablePath);
+
       // TEMPORARY DIAGNOSTIC INSTRUMENTATION — see chromiumDiagnostics.ts.
       // Collects read-only runtime evidence (env facts, filesystem state,
       // ldd/file output when available) to determine whether the Chromium
       // payload was bundled/extracted correctly or is OS-incompatible.
       // Remove this call (and the chromiumDiagnostics.ts file) once the
-      // root cause has been confirmed from real Vercel Function logs.
+      // fix above has been confirmed from real Vercel Function logs.
       runChromiumDiagnostics(executablePath);
 
       try {
