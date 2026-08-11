@@ -36,8 +36,14 @@ import zlib from 'zlib';
  * of whatever internal condition the package uses to decide (and skip) it
  * in this environment — so the browser can launch regardless of why that
  * step doesn't run here. It writes files flat into the same directory as
- * the Chromium binary (matching where the other extracted libraries land),
- * which is where the binary's own embedded rpath looks for them.
+ * the Chromium binary (matching where the other extracted libraries land).
+ *
+ * Extracting the files is not enough on its own: runtime evidence (`ldd`)
+ * confirmed the Chromium binary has no $ORIGIN-relative rpath for these
+ * specific libraries, so the dynamic linker never looks in that directory
+ * unless told to. This function also sets LD_LIBRARY_PATH to include it,
+ * which `puppeteer.launch()` propagates to the spawned browser process via
+ * normal environment inheritance.
  *
  * It is idempotent and cheap to call on every cold start: a no-op once
  * libnss3.so is already present (extracted by this function, or — should a
@@ -112,15 +118,38 @@ function extractArchive(archivePath: string, targetDir: string): number {
   return extractedCount;
 }
 
+/** Ensures `dir` is present (once) at the front of LD_LIBRARY_PATH for this process. */
+function addToLibraryPath(dir: string): void {
+  const existing = process.env.LD_LIBRARY_PATH;
+  const parts = existing ? existing.split(':').filter(Boolean) : [];
+  if (!parts.includes(dir)) {
+    parts.unshift(dir);
+  }
+  process.env.LD_LIBRARY_PATH = parts.join(':');
+}
+
 /**
  * Ensures libnss3.so (and its siblings) exist next to the Chromium binary,
  * extracting them ourselves from the package's own bin/al2023.tar.br (or
  * bin/al2.tar.br as a fallback) if they're missing. Safe to call on every
  * cold start — no-ops once the libraries are already present.
+ *
+ * It also points LD_LIBRARY_PATH at that directory on every call. Runtime
+ * evidence showed the chromium binary does NOT have an $ORIGIN-relative
+ * rpath for these libraries (`ldd` still reported "not found" even after
+ * the files were confirmed present on disk next to it — the other
+ * extracted libraries like libEGL.so are not direct ELF dependencies of
+ * the binary either; Chromium dlopen()s those itself, separately). Without
+ * LD_LIBRARY_PATH, the dynamic linker never looks in /tmp at all, no
+ * matter what's extracted there. `puppeteer.launch()` spawns the browser
+ * process inheriting `process.env` by default, so setting this here before
+ * launch is sufficient to propagate it to the child process.
  */
 export function ensureNssLibrariesExtracted(executablePath: string): void {
   const targetDir = path.dirname(executablePath);
   const nssMarker = path.join(targetDir, 'libnss3.so');
+
+  addToLibraryPath(targetDir);
 
   if (fs.existsSync(nssMarker)) {
     return;
