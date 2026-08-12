@@ -44,8 +44,14 @@ function getBrowser(): Promise<Browser> {
       // fix above has been confirmed from real Vercel Function logs.
       runChromiumDiagnostics(executablePath);
 
+      // TEMPORARY DIAGNOSTIC: we have been trusting chromium.args blindly
+      // since the beginning — never actually logged what's in it. These
+      // are just CLI flags (no secrets), safe to log in full.
+      console.log('[chromium-diagnostics] chromium.args ->', JSON.stringify(chromium.args));
+      console.log('[chromium-diagnostics] chromium.defaultViewport ->', JSON.stringify(chromium.defaultViewport));
+
       try {
-        return await puppeteer.launch({
+        const browser = await puppeteer.launch({
           args: chromium.args,
           defaultViewport: chromium.defaultViewport,
           executablePath,
@@ -65,6 +71,31 @@ function getBrowser(): Promise<Browser> {
           // once diagnosis is complete — it does not change PDF output.
           dumpio: true,
         });
+
+        // TEMPORARY DIAGNOSTIC: "Protocol error: Connection closed" only
+        // tells us the CDP connection died, not why the underlying OS
+        // process exited. Attaching directly to the real child process
+        // gives us its actual exit code / signal — e.g. SIGKILL strongly
+        // indicates the container's OOM killer, vs SIGSEGV indicating an
+        // actual crash in Chromium itself. This is the most direct,
+        // unambiguous evidence available short of a core dump.
+        const childProcess = browser.process();
+        if (childProcess) {
+          childProcess.on('exit', (code, signal) => {
+            console.error(
+              `[chromium-diagnostics] chromium child process "exit": code=${code} signal=${signal}`
+            );
+          });
+          childProcess.on('close', (code, signal) => {
+            console.error(
+              `[chromium-diagnostics] chromium child process "close": code=${code} signal=${signal}`
+            );
+          });
+        } else {
+          console.error('[chromium-diagnostics] browser.process() returned null — cannot attach exit listeners');
+        }
+
+        return browser;
       } catch (error) {
         // TEMPORARY DIAGNOSTIC LOGGING ONLY. The error below is logged in
         // full and then re-thrown completely unchanged on the next line —
