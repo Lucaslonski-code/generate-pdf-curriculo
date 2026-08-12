@@ -100,6 +100,23 @@ export async function generatePdfFromHtml(html: string): Promise<Buffer> {
   const browser = await getBrowser();
   const page = await browser.newPage();
 
+  // TEMPORARY DIAGNOSTIC LISTENERS. The generic "Protocol error: Connection
+  // closed" seen when page.close() fails after a browser/page crash gives
+  // no information about what actually crashed it. These surface whatever
+  // Puppeteer does expose about that failure, in the same Function logs.
+  page.on('error', (error) => {
+    console.error('[chromium-diagnostics] page "error" event (renderer process crashed):', error.message);
+  });
+  page.on('pageerror', (error) => {
+    console.error('[chromium-diagnostics] page "pageerror" event (uncaught exception in page context):', error);
+  });
+  page.on('console', (msg) => {
+    console.log('[chromium-diagnostics] page console message:', msg.type(), msg.text());
+  });
+  browser.on('disconnected', () => {
+    console.error('[chromium-diagnostics] browser "disconnected" event fired');
+  });
+
   try {
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: PAGE_LOAD_TIMEOUT_MS });
 
@@ -117,6 +134,20 @@ export async function generatePdfFromHtml(html: string): Promise<Buffer> {
 
     return Buffer.from(pdfBytes);
   } finally {
-    await page.close();
+    // If setContent()/pdf() above threw because the browser/page had
+    // already crashed, page.close() here can ALSO throw ("Protocol error:
+    // Connection closed..."). Left uncaught, that would silently replace
+    // the original, more informative error (standard JS try/finally
+    // behavior: an exception from `finally` overrides one from `try`).
+    // Catching and only logging it here guarantees the real error is
+    // always what the caller — and the logs — actually see.
+    try {
+      await page.close();
+    } catch (closeError) {
+      console.error(
+        '[chromium-diagnostics] page.close() also failed (this is a symptom, not the root cause):',
+        closeError instanceof Error ? closeError.message : closeError
+      );
+    }
   }
 }
