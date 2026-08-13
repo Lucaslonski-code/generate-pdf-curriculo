@@ -69,35 +69,32 @@ async function getBrowser(): Promise<Browser> {
     console.log('[chromium-diagnostics] chromium.args ->', JSON.stringify(chromium.args));
     console.log('[chromium-diagnostics] chromium.defaultViewport ->', JSON.stringify(chromium.defaultViewport));
 
+    // FIX v3, based on direct evidence that DISPROVED v2: appending
+    // `--disable-gpu` on top of chromium.args had ZERO effect — the log
+    // still showed the identical "ANGLE VMA version" line, proving GPU/
+    // ANGLE initialization proceeded exactly as if `--disable-gpu` were
+    // never passed. This isn't "last flag wins" the way a literal
+    // duplicate (`--use-gl=X` vs `--use-gl=Y`) would be: `--disable-gpu`
+    // is a distinct switch from `--ignore-gpu-blocklist`/`--in-process-gpu`/
+    // `--use-gl=angle`, and those forcing flags (already in chromium.args)
+    // evidently win over a merely-appended `--disable-gpu`.
+    //
+    // v3 removes the specific GPU-forcing flags from chromium.args before
+    // launch, instead of only adding another flag on top of them, so there
+    // is no contradictory combination left for Chromium to resolve.
+    const GPU_FORCING_FLAGS = new Set([
+      '--ignore-gpu-blocklist',
+      '--in-process-gpu',
+      '--use-gl=angle',
+      '--use-angle=swiftshader',
+    ]);
+    const launchArgs = chromium.args.filter((arg) => !GPU_FORCING_FLAGS.has(arg));
+    launchArgs.push('--disable-gpu', '--disable-software-rasterizer');
+    console.log('[chromium-diagnostics] launchArgs (after removing GPU-forcing flags) ->', JSON.stringify(launchArgs));
+
     try {
       const browser = await puppeteer.launch({
-        args: [
-          ...chromium.args,
-          // FIX v2, based on new direct evidence that DISPROVED the v1
-          // attempt below: overriding to `--use-gl=swiftshader` alone
-          // caused Chromium to log "Requested GL implementation
-          // (gl=none,angle=none) not found" (that value isn't valid on
-          // its own in this Chromium version) — and it STILL crashed
-          // with the exact same `SIGTRAP`. That rules out "wrong GL
-          // backend" as the cause, since changing it changed nothing.
-          //
-          // With that broken value in place, the logs also showed the
-          // actual failure for the first time: repeated Chromium
-          // `CHECK failed: false. NOTREACHED` assertions in
-          // gpu_channel_manager.cc ("Failed to create GLES3 context",
-          // "Failed to create shared context for virtualization",
-          // "unable to create context") immediately before the crash.
-          // A failed CHECK() is Chromium intentionally crashing itself
-          // via SIGTRAP — this is the real root cause: GPU context
-          // creation itself is failing in this environment (likely due
-          // to `--single-process --in-process-gpu` combined with no
-          // real GPU), and Chromium treats that as fatal.
-          //
-          // Headless PDF generation does not need GPU acceleration at
-          // all, so the robust fix is to skip GPU usage entirely rather
-          // than pick a specific (and apparently fragile) GPU backend.
-          '--disable-gpu',
-        ],
+        args: launchArgs,
         defaultViewport: chromium.defaultViewport,
         executablePath,
         // @sparticuz/chromium's `headless` getter can return the literal
