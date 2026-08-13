@@ -73,18 +73,30 @@ async function getBrowser(): Promise<Browser> {
       const browser = await puppeteer.launch({
         args: [
           ...chromium.args,
-          // FIX based on direct evidence: the underlying Chromium child
-          // process was observed dying with `signal=SIGTRAP` immediately
-          // after the "ANGLE VMA version" log line — i.e. during the
-          // ANGLE/Vulkan-backed SwiftShader graphics initialization
-          // (chromium.args sets `--use-gl=angle --use-angle=swiftshader`,
-          // combined with `--single-process --in-process-gpu`, which puts
-          // browser + renderer + GPU all in one OS process with no fault
-          // isolation). Chromium reads the LAST occurrence of a repeated
-          // flag, so appending `--use-gl=swiftshader` here overrides that
-          // and forces the older, non-ANGLE SwiftShader software
-          // rendering path, avoiding the Vulkan init step entirely.
-          '--use-gl=swiftshader',
+          // FIX v2, based on new direct evidence that DISPROVED the v1
+          // attempt below: overriding to `--use-gl=swiftshader` alone
+          // caused Chromium to log "Requested GL implementation
+          // (gl=none,angle=none) not found" (that value isn't valid on
+          // its own in this Chromium version) — and it STILL crashed
+          // with the exact same `SIGTRAP`. That rules out "wrong GL
+          // backend" as the cause, since changing it changed nothing.
+          //
+          // With that broken value in place, the logs also showed the
+          // actual failure for the first time: repeated Chromium
+          // `CHECK failed: false. NOTREACHED` assertions in
+          // gpu_channel_manager.cc ("Failed to create GLES3 context",
+          // "Failed to create shared context for virtualization",
+          // "unable to create context") immediately before the crash.
+          // A failed CHECK() is Chromium intentionally crashing itself
+          // via SIGTRAP — this is the real root cause: GPU context
+          // creation itself is failing in this environment (likely due
+          // to `--single-process --in-process-gpu` combined with no
+          // real GPU), and Chromium treats that as fatal.
+          //
+          // Headless PDF generation does not need GPU acceleration at
+          // all, so the robust fix is to skip GPU usage entirely rather
+          // than pick a specific (and apparently fragile) GPU backend.
+          '--disable-gpu',
         ],
         defaultViewport: chromium.defaultViewport,
         executablePath,
