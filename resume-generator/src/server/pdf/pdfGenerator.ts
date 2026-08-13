@@ -82,15 +82,38 @@ async function getBrowser(): Promise<Browser> {
     // v3 removes the specific GPU-forcing flags from chromium.args before
     // launch, instead of only adding another flag on top of them, so there
     // is no contradictory combination left for Chromium to resolve.
+    //
+    // UPDATE: this v3 attempt was tested and DISPROVED as the cause of the
+    // crash — the log confirmed GPU/ANGLE genuinely never initialized this
+    // time (the "ANGLE VMA version" line was gone entirely), yet the exact
+    // same SIGTRAP crash still happened, at the same ~150-250ms mark after
+    // DevTools starts listening. GPU is not, and never was, the cause.
+    // Kept anyway (harmless, and still a reasonable choice for headless PDF
+    // rendering, which needs no GPU acceleration), but no longer the fix.
     const GPU_FORCING_FLAGS = new Set([
       '--ignore-gpu-blocklist',
       '--in-process-gpu',
       '--use-gl=angle',
       '--use-angle=swiftshader',
     ]);
-    const launchArgs = chromium.args.filter((arg) => !GPU_FORCING_FLAGS.has(arg));
+
+    // FIX v4, a genuinely new lead spotted directly in the logged
+    // chromium.args (not a guess): one entry is the literal string
+    // `--headless='new'` — with single-quote characters INSIDE the flag
+    // value. child_process.spawn() (what puppeteer-core uses internally)
+    // never goes through a shell, so nothing strips those quotes; Chromium
+    // receives the 6-character value `'new'` instead of the intended
+    // 3-character `new`. We ALSO separately pass our own `headless: true`
+    // launch option below, which puppeteer-core turns into its own
+    // correctly-formed `--headless` flag — meaning the process likely
+    // receives two conflicting/malformed `--headless` values. Stripping
+    // any `--headless`-prefixed entry from chromium.args leaves our own
+    // (correct) headless option as the single source of truth.
+    const launchArgs = chromium.args.filter(
+      (arg) => !GPU_FORCING_FLAGS.has(arg) && !arg.startsWith('--headless')
+    );
     launchArgs.push('--disable-gpu', '--disable-software-rasterizer');
-    console.log('[chromium-diagnostics] launchArgs (after removing GPU-forcing flags) ->', JSON.stringify(launchArgs));
+    console.log('[chromium-diagnostics] launchArgs (GPU-forcing + malformed --headless removed) ->', JSON.stringify(launchArgs));
 
     try {
       const browser = await puppeteer.launch({
