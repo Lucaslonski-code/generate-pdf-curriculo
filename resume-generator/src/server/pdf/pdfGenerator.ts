@@ -1,10 +1,40 @@
-import { Browser } from 'puppeteer-core';
+import type { Browser } from 'puppeteer-core';
+import fs from 'fs';
 import { runChromiumDiagnostics } from './chromiumDiagnostics';
 import { ensureNssLibrariesExtracted } from './chromiumNssFix';
 
 const PAGE_LOAD_TIMEOUT_MS = 15_000;
 
 let browserPromise: Promise<Browser> | null = null;
+
+async function findLocalChromePath(): Promise<string> {
+  if (process.platform === 'win32') {
+    const candidates = [
+      `${process.env['PROGRAMFILES']}\\Google\\Chrome\\Application\\chrome.exe`,
+      `${process.env['PROGRAMFILES(X86)']}\\Google\\Chrome\\Application\\chrome.exe`,
+      `${process.env['LOCALAPPDATA']}\\Google\\Chrome\\Application\\chrome.exe`,
+    ];
+    for (const p of candidates) {
+      if (p && fs.existsSync(p)) return p;
+    }
+  } else if (process.platform === 'darwin') {
+    const macPath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+    if (fs.existsSync(macPath)) return macPath;
+  } else {
+    const { execSync } = await import('child_process');
+    try {
+      return execSync('which chromium-browser || which chromium || which google-chrome', {
+        encoding: 'utf-8',
+        timeout: 5000,
+      }).trim();
+    } catch {
+      // not found
+    }
+  }
+  throw new Error(
+    'Google Chrome not found. Install Chrome or set the CHROME_PATH environment variable.',
+  );
+}
 
 async function getBrowser(): Promise<Browser> {
   if (browserPromise) {
@@ -17,11 +47,19 @@ async function getBrowser(): Promise<Browser> {
   }
 
   browserPromise = (async () => {
-    let puppeteer: typeof import('puppeteer-core');
-    let chromium: typeof import('@sparticuz/chromium');
+    const puppeteerCore = await import('puppeteer-core');
+    const puppeteer = puppeteerCore.default ?? puppeteerCore;
+
     let executablePath: string;
     let launchArgs: string[];
-    let defaultViewport: { width: number; height: number; deviceScaleFactor: number; isMobile: boolean; hasTouch: boolean; isLandscape: boolean };
+    let defaultViewport: {
+      width: number;
+      height: number;
+      deviceScaleFactor: number;
+      isMobile: boolean;
+      hasTouch: boolean;
+      isLandscape: boolean;
+    };
     let headless: boolean | 'shell' | undefined;
 
     const isVercel = !!process.env.VERCEL;
@@ -29,9 +67,7 @@ async function getBrowser(): Promise<Browser> {
 
     if (isVercel || isLinux) {
       const chromiumModule = await import('@sparticuz/chromium');
-      chromium = chromiumModule;
-      const puppeteerCoreModule = await import('puppeteer-core');
-      puppeteer = puppeteerCoreModule;
+      const chromium = chromiumModule.default ?? chromiumModule;
 
       executablePath = await chromium.executablePath();
 
@@ -39,7 +75,10 @@ async function getBrowser(): Promise<Browser> {
       runChromiumDiagnostics(executablePath);
 
       console.log('[chromium-diagnostics] chromium.args ->', JSON.stringify(chromium.args));
-      console.log('[chromium-diagnostics] chromium.defaultViewport ->', JSON.stringify(chromium.defaultViewport));
+      console.log(
+        '[chromium-diagnostics] chromium.defaultViewport ->',
+        JSON.stringify(chromium.defaultViewport),
+      );
 
       const GPU_FORCING_FLAGS = new Set([
         '--ignore-gpu-blocklist',
@@ -49,18 +88,18 @@ async function getBrowser(): Promise<Browser> {
       ]);
 
       launchArgs = chromium.args.filter(
-        (arg) => !GPU_FORCING_FLAGS.has(arg) && !arg.startsWith('--headless')
+        (arg) => !GPU_FORCING_FLAGS.has(arg) && !arg.startsWith('--headless'),
       );
       launchArgs.push('--disable-gpu', '--disable-software-rasterizer');
-      console.log('[chromium-diagnostics] launchArgs (GPU-forcing + malformed --headless removed) ->', JSON.stringify(launchArgs));
+      console.log(
+        '[chromium-diagnostics] launchArgs (GPU-forcing + malformed --headless removed) ->',
+        JSON.stringify(launchArgs),
+      );
 
       defaultViewport = chromium.defaultViewport;
       headless = chromium.headless === 'new' ? true : chromium.headless;
     } else {
-      const puppeteerModule = await import('puppeteer');
-      puppeteer = puppeteerModule.default ?? puppeteerModule;
-
-      executablePath = await puppeteer.executablePath();
+      executablePath = await findLocalChromePath();
       launchArgs = [
         '--disable-gpu',
         '--disable-software-rasterizer',
@@ -72,7 +111,14 @@ async function getBrowser(): Promise<Browser> {
         '--disable-background-timer-throttling',
         '--disable-renderer-backgrounding',
       ];
-      defaultViewport = { width: 1920, height: 1080, deviceScaleFactor: 1, isMobile: false, hasTouch: false, isLandscape: true };
+      defaultViewport = {
+        width: 1920,
+        height: 1080,
+        deviceScaleFactor: 1,
+        isMobile: false,
+        hasTouch: false,
+        isLandscape: true,
+      };
       headless = true;
     }
 
@@ -90,25 +136,30 @@ async function getBrowser(): Promise<Browser> {
       if (childProcess) {
         childProcess.on('exit', (code, signal) => {
           console.error(
-            `[chromium-diagnostics] chromium child process "exit": code=${code} signal=${signal}`
+            `[chromium-diagnostics] chromium child process "exit": code=${code} signal=${signal}`,
           );
         });
         childProcess.on('close', (code, signal) => {
           console.error(
-            `[chromium-diagnostics] chromium child process "close": code=${code} signal=${signal}`
+            `[chromium-diagnostics] chromium child process "close": code=${code} signal=${signal}`,
           );
         });
       } else {
-        console.error('[chromium-diagnostics] browser.process() returned null — cannot attach exit listeners');
+        console.error(
+          '[chromium-diagnostics] browser.process() returned null — cannot attach exit listeners',
+        );
       }
 
       return browser;
     } catch (error) {
       console.error('[chromium-diagnostics] puppeteer.launch() threw. Full error follows:');
-      console.error('[chromium-diagnostics] error.message:', error instanceof Error ? error.message : error);
+      console.error(
+        '[chromium-diagnostics] error.message:',
+        error instanceof Error ? error.message : error,
+      );
       console.error(
         '[chromium-diagnostics] error.stack:',
-        error instanceof Error ? error.stack : '(not an Error instance)'
+        error instanceof Error ? error.stack : '(not an Error instance)',
       );
       throw error;
     }
@@ -122,10 +173,16 @@ export async function generatePdfFromHtml(html: string): Promise<Buffer> {
   const page = await browser.newPage();
 
   page.on('error', (error) => {
-    console.error('[chromium-diagnostics] page "error" event (renderer process crashed):', error.message);
+    console.error(
+      '[chromium-diagnostics] page "error" event (renderer process crashed):',
+      error.message,
+    );
   });
   page.on('pageerror', (error) => {
-    console.error('[chromium-diagnostics] page "pageerror" event (uncaught exception in page context):', error);
+    console.error(
+      '[chromium-diagnostics] page "pageerror" event (uncaught exception in page context):',
+      error,
+    );
   });
   page.on('console', (msg) => {
     console.log('[chromium-diagnostics] page console message:', msg.type(), msg.text());
@@ -156,7 +213,7 @@ export async function generatePdfFromHtml(html: string): Promise<Buffer> {
     } catch (closeError) {
       console.error(
         '[chromium-diagnostics] page.close() also failed (this is a symptom, not the root cause):',
-        closeError instanceof Error ? closeError.message : closeError
+        closeError instanceof Error ? closeError.message : closeError,
       );
     }
   }
