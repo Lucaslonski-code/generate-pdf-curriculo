@@ -1,27 +1,9 @@
-import chromium from '@sparticuz/chromium';
-import puppeteer, { Browser } from 'puppeteer-core';
+import { Browser } from 'puppeteer-core';
 import { runChromiumDiagnostics } from './chromiumDiagnostics';
 import { ensureNssLibrariesExtracted } from './chromiumNssFix';
 
 const PAGE_LOAD_TIMEOUT_MS = 15_000;
 
-/**
- * Vercel Serverless Functions run in a Node.js Lambda-style environment:
- * there is no system Chrome installed, and the deployed function bundle
- * has a strict size budget that the full `puppeteer` package (which
- * bundles a ~300MB browser download) does not fit into.
- *
- * `puppeteer-core` ships no browser at all, and `@sparticuz/chromium`
- * provides a Chromium build compressed specifically to fit that budget,
- * unpacked to /tmp on cold start — no network download, no install step,
- * no reliance on a cached or locally installed browser.
- *
- * The same container is reused across consecutive ("warm") invocations of
- * the same function, so — exactly like the previous long-running-server
- * version — a single Chromium instance is launched lazily and reused for
- * the lifetime of the container; each request only opens/closes its own
- * `page`, which is cheap.
- */
 let browserPromise: Promise<Browser> | null = null;
 
 async function getBrowser(): Promise<Browser> {
@@ -30,120 +12,80 @@ async function getBrowser(): Promise<Browser> {
     if (cached.isConnected()) {
       return cached;
     }
-    // The cached browser's underlying OS process died after it was
-    // launched (e.g. the SIGTRAP crash this fix addresses, or any other
-    // reason) — direct evidence showed a later request in the same warm
-    // container reusing this stale reference and failing immediately on
-    // browser.newPage() with "Protocol error: Connection closed". Discard
-    // the cache and relaunch instead of handing out a dead browser.
-    //
-    // Known narrow edge case: if two requests hit this branch concurrently,
-    // both may relaunch independently (the second overwrites browserPromise
-    // and the first launch leaks). Not addressed here — out of scope for
-    // this fix and unrelated to the crash under investigation.
     console.error('[chromium-diagnostics] cached browser is no longer connected — relaunching');
     browserPromise = null;
   }
 
   browserPromise = (async () => {
-    const executablePath = await chromium.executablePath();
+    let puppeteer: typeof import('puppeteer-core');
+    let chromium: typeof import('@sparticuz/chromium');
+    let executablePath: string;
+    let launchArgs: string[];
+    let defaultViewport: { width: number; height: number; deviceScaleFactor: number; isMobile: boolean; hasTouch: boolean; isLandscape: boolean };
+    let headless: boolean | 'shell' | undefined;
 
-    // PERMANENT FIX — see chromiumNssFix.ts for the full root-cause
-    // explanation. @sparticuz/chromium's own extraction of the NSS
-    // library archive (bin/al2023.tar.br or bin/al2.tar.br) does not
-    // run in this environment; this performs that extraction directly
-    // so libnss3.so and its siblings exist before launch() is attempted.
-    ensureNssLibrariesExtracted(executablePath);
+    const isVercel = !!process.env.VERCEL;
+    const isLinux = process.platform === 'linux';
 
-    // TEMPORARY DIAGNOSTIC INSTRUMENTATION — see chromiumDiagnostics.ts.
-    // Collects read-only runtime evidence (env facts, filesystem state,
-    // ldd/file output when available) to determine whether the Chromium
-    // payload was bundled/extracted correctly or is OS-incompatible.
-    // Remove this call (and the chromiumDiagnostics.ts file) once the
-    // fix above has been confirmed from real Vercel Function logs.
-    runChromiumDiagnostics(executablePath);
+    if (isVercel || isLinux) {
+      const chromiumModule = await import('@sparticuz/chromium');
+      chromium = chromiumModule;
+      const puppeteerCoreModule = await import('puppeteer-core');
+      puppeteer = puppeteerCoreModule;
 
-    // TEMPORARY DIAGNOSTIC: we have been trusting chromium.args blindly
-    // since the beginning — never actually logged what's in it. These
-    // are just CLI flags (no secrets), safe to log in full.
-    console.log('[chromium-diagnostics] chromium.args ->', JSON.stringify(chromium.args));
-    console.log('[chromium-diagnostics] chromium.defaultViewport ->', JSON.stringify(chromium.defaultViewport));
+      executablePath = await chromium.executablePath();
 
-    // FIX v3, based on direct evidence that DISPROVED v2: appending
-    // `--disable-gpu` on top of chromium.args had ZERO effect — the log
-    // still showed the identical "ANGLE VMA version" line, proving GPU/
-    // ANGLE initialization proceeded exactly as if `--disable-gpu` were
-    // never passed. This isn't "last flag wins" the way a literal
-    // duplicate (`--use-gl=X` vs `--use-gl=Y`) would be: `--disable-gpu`
-    // is a distinct switch from `--ignore-gpu-blocklist`/`--in-process-gpu`/
-    // `--use-gl=angle`, and those forcing flags (already in chromium.args)
-    // evidently win over a merely-appended `--disable-gpu`.
-    //
-    // v3 removes the specific GPU-forcing flags from chromium.args before
-    // launch, instead of only adding another flag on top of them, so there
-    // is no contradictory combination left for Chromium to resolve.
-    //
-    // UPDATE: this v3 attempt was tested and DISPROVED as the cause of the
-    // crash — the log confirmed GPU/ANGLE genuinely never initialized this
-    // time (the "ANGLE VMA version" line was gone entirely), yet the exact
-    // same SIGTRAP crash still happened, at the same ~150-250ms mark after
-    // DevTools starts listening. GPU is not, and never was, the cause.
-    // Kept anyway (harmless, and still a reasonable choice for headless PDF
-    // rendering, which needs no GPU acceleration), but no longer the fix.
-    const GPU_FORCING_FLAGS = new Set([
-      '--ignore-gpu-blocklist',
-      '--in-process-gpu',
-      '--use-gl=angle',
-      '--use-angle=swiftshader',
-    ]);
+      ensureNssLibrariesExtracted(executablePath);
+      runChromiumDiagnostics(executablePath);
 
-    // FIX v4, a genuinely new lead spotted directly in the logged
-    // chromium.args (not a guess): one entry is the literal string
-    // `--headless='new'` — with single-quote characters INSIDE the flag
-    // value. child_process.spawn() (what puppeteer-core uses internally)
-    // never goes through a shell, so nothing strips those quotes; Chromium
-    // receives the 6-character value `'new'` instead of the intended
-    // 3-character `new`. We ALSO separately pass our own `headless: true`
-    // launch option below, which puppeteer-core turns into its own
-    // correctly-formed `--headless` flag — meaning the process likely
-    // receives two conflicting/malformed `--headless` values. Stripping
-    // any `--headless`-prefixed entry from chromium.args leaves our own
-    // (correct) headless option as the single source of truth.
-    const launchArgs = chromium.args.filter(
-      (arg) => !GPU_FORCING_FLAGS.has(arg) && !arg.startsWith('--headless')
-    );
-    launchArgs.push('--disable-gpu', '--disable-software-rasterizer');
-    console.log('[chromium-diagnostics] launchArgs (GPU-forcing + malformed --headless removed) ->', JSON.stringify(launchArgs));
+      console.log('[chromium-diagnostics] chromium.args ->', JSON.stringify(chromium.args));
+      console.log('[chromium-diagnostics] chromium.defaultViewport ->', JSON.stringify(chromium.defaultViewport));
+
+      const GPU_FORCING_FLAGS = new Set([
+        '--ignore-gpu-blocklist',
+        '--in-process-gpu',
+        '--use-gl=angle',
+        '--use-angle=swiftshader',
+      ]);
+
+      launchArgs = chromium.args.filter(
+        (arg) => !GPU_FORCING_FLAGS.has(arg) && !arg.startsWith('--headless')
+      );
+      launchArgs.push('--disable-gpu', '--disable-software-rasterizer');
+      console.log('[chromium-diagnostics] launchArgs (GPU-forcing + malformed --headless removed) ->', JSON.stringify(launchArgs));
+
+      defaultViewport = chromium.defaultViewport;
+      headless = chromium.headless === 'new' ? true : chromium.headless;
+    } else {
+      const puppeteerModule = await import('puppeteer');
+      puppeteer = puppeteerModule.default ?? puppeteerModule;
+
+      executablePath = await puppeteer.executablePath();
+      launchArgs = [
+        '--disable-gpu',
+        '--disable-software-rasterizer',
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-extensions',
+        '--disable-background-networking',
+        '--disable-background-timer-throttling',
+        '--disable-renderer-backgrounding',
+      ];
+      defaultViewport = { width: 1920, height: 1080, deviceScaleFactor: 1, isMobile: false, hasTouch: false, isLandscape: true };
+      headless = true;
+    }
 
     try {
       const browser = await puppeteer.launch({
         args: launchArgs,
-        defaultViewport: chromium.defaultViewport,
+        defaultViewport,
         executablePath,
-        // @sparticuz/chromium's `headless` getter can return the literal
-        // "new" — the flag older Puppeteer versions used to opt into the
-        // new headless renderer. The installed puppeteer-core (22.x)
-        // already defaults to that same renderer and only accepts
-        // `boolean | "shell" | undefined`; "new" is no longer a valid
-        // literal there. Normalizing "new" to `true` keeps the exact same
-        // intent (use the new headless mode) while satisfying the actual
-        // installed type.
-        headless: chromium.headless === 'new' ? true : chromium.headless,
-        // TEMPORARY: pipes the browser subprocess's own stdout/stderr into
-        // this Function's logs. This can surface the dynamic linker's full
-        // complaint (possibly more than just libnss3.so) instead of only
-        // the summarized message Puppeteer itself throws. Safe to remove
-        // once diagnosis is complete — it does not change PDF output.
+        headless,
         dumpio: true,
+        protocolTimeout: 120000,
       });
 
-      // TEMPORARY DIAGNOSTIC: "Protocol error: Connection closed" only
-      // tells us the CDP connection died, not why the underlying OS
-      // process exited. Attaching directly to the real child process
-      // gives us its actual exit code / signal — e.g. SIGKILL strongly
-      // indicates the container's OOM killer, vs SIGSEGV indicating an
-      // actual crash in Chromium itself. This is the most direct,
-      // unambiguous evidence available short of a core dump.
       const childProcess = browser.process();
       if (childProcess) {
         childProcess.on('exit', (code, signal) => {
@@ -162,10 +104,6 @@ async function getBrowser(): Promise<Browser> {
 
       return browser;
     } catch (error) {
-      // TEMPORARY DIAGNOSTIC LOGGING ONLY. The error below is logged in
-      // full and then re-thrown completely unchanged on the next line —
-      // this does not alter the function's behavior or response in any
-      // way; it only makes the existing failure more visible in logs.
       console.error('[chromium-diagnostics] puppeteer.launch() threw. Full error follows:');
       console.error('[chromium-diagnostics] error.message:', error instanceof Error ? error.message : error);
       console.error(
@@ -179,27 +117,10 @@ async function getBrowser(): Promise<Browser> {
   return browserPromise;
 }
 
-/**
- * Renders an HTML document into a print-quality A4 PDF buffer.
- *
- * - `waitUntil: 'networkidle0'` ensures Google Fonts (loaded via @import
- *   in the template CSS) have finished loading before the page is
- *   rasterized, avoiding a flash of fallback fonts in the PDF. A bounded
- *   `timeout` keeps a flaky network from hanging the request indefinitely.
- * - Margins are applied here (rather than via `@page` in CSS) so every
- *   template gets consistent, professional spacing regardless of its
- *   own styling choices.
- * - `printBackground: true` preserves subtle background colors (e.g.
- *   skill tags) that would otherwise be stripped in print output.
- */
 export async function generatePdfFromHtml(html: string): Promise<Buffer> {
   const browser = await getBrowser();
   const page = await browser.newPage();
 
-  // TEMPORARY DIAGNOSTIC LISTENERS. The generic "Protocol error: Connection
-  // closed" seen when page.close() fails after a browser/page crash gives
-  // no information about what actually crashed it. These surface whatever
-  // Puppeteer does expose about that failure, in the same Function logs.
   page.on('error', (error) => {
     console.error('[chromium-diagnostics] page "error" event (renderer process crashed):', error.message);
   });
@@ -230,13 +151,6 @@ export async function generatePdfFromHtml(html: string): Promise<Buffer> {
 
     return Buffer.from(pdfBytes);
   } finally {
-    // If setContent()/pdf() above threw because the browser/page had
-    // already crashed, page.close() here can ALSO throw ("Protocol error:
-    // Connection closed..."). Left uncaught, that would silently replace
-    // the original, more informative error (standard JS try/finally
-    // behavior: an exception from `finally` overrides one from `try`).
-    // Catching and only logging it here guarantees the real error is
-    // always what the caller — and the logs — actually see.
     try {
       await page.close();
     } catch (closeError) {
