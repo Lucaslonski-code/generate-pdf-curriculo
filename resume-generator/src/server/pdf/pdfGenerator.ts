@@ -1,11 +1,9 @@
-import type { Browser } from 'puppeteer-core';
 import fs from 'fs';
-import { runChromiumDiagnostics } from './chromiumDiagnostics';
-import { ensureNssLibrariesExtracted } from './chromiumNssFix';
 
 const PAGE_LOAD_TIMEOUT_MS = 15_000;
 
-let browserPromise: Promise<Browser> | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let browserPromise: Promise<any> | null = null;
 
 async function findLocalChromePath(): Promise<string> {
   if (process.platform === 'win32') {
@@ -36,13 +34,12 @@ async function findLocalChromePath(): Promise<string> {
   );
 }
 
-async function getBrowser(): Promise<Browser> {
+async function getBrowser() {
   if (browserPromise) {
     const cached = await browserPromise;
-    if (cached.isConnected()) {
+    if (cached.connected) {
       return cached;
     }
-    console.error('[chromium-diagnostics] cached browser is no longer connected — relaunching');
     browserPromise = null;
   }
 
@@ -73,13 +70,17 @@ async function getBrowser(): Promise<Browser> {
 
       executablePath = await chromium.executablePath();
 
-      ensureNssLibrariesExtracted(executablePath);
-      runChromiumDiagnostics(executablePath);
-
       launchArgs = chromium.args.filter((arg) => !arg.startsWith('--headless'));
 
-      defaultViewport = chromium.defaultViewport;
       headless = 'shell';
+      defaultViewport = {
+        width: 1920,
+        height: 1080,
+        deviceScaleFactor: 1,
+        isMobile: false,
+        hasTouch: false,
+        isLandscape: true,
+      };
     } else {
       executablePath = await findLocalChromePath();
       launchArgs = [
@@ -104,47 +105,16 @@ async function getBrowser(): Promise<Browser> {
       headless = true;
     }
 
-    try {
-      const browser = await puppeteer.launch({
-        args: launchArgs,
-        defaultViewport,
-        executablePath,
-        headless,
-        dumpio: true,
-        protocolTimeout: 120000,
-      });
+    const browser = await puppeteer.launch({
+      args: launchArgs,
+      defaultViewport,
+      executablePath,
+      headless,
+      dumpio: true,
+      protocolTimeout: 120000,
+    });
 
-      const childProcess = browser.process();
-      if (childProcess) {
-        childProcess.on('exit', (code, signal) => {
-          console.error(
-            `[chromium-diagnostics] chromium child process "exit": code=${code} signal=${signal}`,
-          );
-        });
-        childProcess.on('close', (code, signal) => {
-          console.error(
-            `[chromium-diagnostics] chromium child process "close": code=${code} signal=${signal}`,
-          );
-        });
-      } else {
-        console.error(
-          '[chromium-diagnostics] browser.process() returned null — cannot attach exit listeners',
-        );
-      }
-
-      return browser;
-    } catch (error) {
-      console.error('[chromium-diagnostics] puppeteer.launch() threw. Full error follows:');
-      console.error(
-        '[chromium-diagnostics] error.message:',
-        error instanceof Error ? error.message : error,
-      );
-      console.error(
-        '[chromium-diagnostics] error.stack:',
-        error instanceof Error ? error.stack : '(not an Error instance)',
-      );
-      throw error;
-    }
+    return browser;
   })();
 
   return browserPromise;
@@ -154,27 +124,8 @@ export async function generatePdfFromHtml(html: string): Promise<Buffer> {
   const browser = await getBrowser();
   const page = await browser.newPage();
 
-  page.on('error', (error) => {
-    console.error(
-      '[chromium-diagnostics] page "error" event (renderer process crashed):',
-      error.message,
-    );
-  });
-  page.on('pageerror', (error) => {
-    console.error(
-      '[chromium-diagnostics] page "pageerror" event (uncaught exception in page context):',
-      error,
-    );
-  });
-  page.on('console', (msg) => {
-    console.log('[chromium-diagnostics] page console message:', msg.type(), msg.text());
-  });
-  browser.on('disconnected', () => {
-    console.error('[chromium-diagnostics] browser "disconnected" event fired');
-  });
-
   try {
-    await page.setContent(html, { waitUntil: 'networkidle0', timeout: PAGE_LOAD_TIMEOUT_MS });
+    await page.setContent(html, { waitUntil: 'load', timeout: PAGE_LOAD_TIMEOUT_MS });
 
     const pdfBytes = await page.pdf({
       format: 'A4',
@@ -192,11 +143,8 @@ export async function generatePdfFromHtml(html: string): Promise<Buffer> {
   } finally {
     try {
       await page.close();
-    } catch (closeError) {
-      console.error(
-        '[chromium-diagnostics] page.close() also failed (this is a symptom, not the root cause):',
-        closeError instanceof Error ? closeError.message : closeError,
-      );
+    } catch {
+      // page already closed
     }
   }
 }
