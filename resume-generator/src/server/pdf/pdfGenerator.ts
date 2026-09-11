@@ -69,35 +69,17 @@ async function getBrowser(): Promise<Browser> {
       const chromiumModule = await import('@sparticuz/chromium');
       const chromium = chromiumModule.default ?? chromiumModule;
 
+      chromium.setGraphicsMode = false;
+
       executablePath = await chromium.executablePath();
 
       ensureNssLibrariesExtracted(executablePath);
       runChromiumDiagnostics(executablePath);
 
-      console.log('[chromium-diagnostics] chromium.args ->', JSON.stringify(chromium.args));
-      console.log(
-        '[chromium-diagnostics] chromium.defaultViewport ->',
-        JSON.stringify(chromium.defaultViewport),
-      );
-
-      const GPU_FORCING_FLAGS = new Set([
-        '--ignore-gpu-blocklist',
-        '--in-process-gpu',
-        '--use-gl=angle',
-        '--use-angle=swiftshader',
-      ]);
-
-      launchArgs = chromium.args.filter(
-        (arg) => !GPU_FORCING_FLAGS.has(arg) && !arg.startsWith('--headless'),
-      );
-      launchArgs.push('--disable-gpu', '--disable-software-rasterizer');
-      console.log(
-        '[chromium-diagnostics] launchArgs (GPU-forcing + malformed --headless removed) ->',
-        JSON.stringify(launchArgs),
-      );
+      launchArgs = chromium.args.filter((arg) => !arg.startsWith('--headless'));
 
       defaultViewport = chromium.defaultViewport;
-      headless = chromium.headless === 'new' ? true : chromium.headless;
+      headless = 'shell';
     } else {
       executablePath = await findLocalChromePath();
       launchArgs = [
