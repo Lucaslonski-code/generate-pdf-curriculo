@@ -44,6 +44,9 @@ const SECTION_VARIANTS: Record<string, SectionType> = {
   projetos: 'projects',
   'projetos relevantes': 'projects',
   'projetos pessoais': 'projects',
+  'projetos desenvolvidos': 'projects',
+  'projetos em destaque': 'projects',
+  portfolio: 'projects',
   projects: 'projects',
 
   // Education

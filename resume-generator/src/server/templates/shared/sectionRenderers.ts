@@ -14,6 +14,7 @@ function renderListContent(items: string[]): string {
 
 function renderEntry(entry: EntryBlock): string {
   const metaHtml = entry.meta ? `<span class="entry-meta">${escapeHtml(entry.meta)}</span>` : '';
+  const stackHtml = entry.stack ? `<p class="entry-stack">${escapeHtml(entry.stack)}</p>` : '';
 
   const descriptionHtml = entry.description
     .map((line) => `<p class="entry-description">${escapeHtml(line)}</p>`)
@@ -31,6 +32,7 @@ function renderEntry(entry: EntryBlock): string {
       <span class="entry-title">${escapeHtml(entry.title)}</span>
       ${metaHtml}
     </div>
+    ${stackHtml}
     ${descriptionHtml}
     ${bulletsHtml}
   </article>`;

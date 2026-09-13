@@ -40,6 +40,26 @@ Idiomas
 Português (Nativo)
 Inglês (Fluente)`;
 
+// Scenario that used to lose the grouping: three projects, each with its own
+// stack and description, pasted without reserved section headings or with
+// projects packed on consecutive lines. Every project must render as one
+// vertical block: title -> stack -> description.
+const threeProjectsResume = `Maria Oliveira
+Desenvolvedora Full Stack Sênior
+maria@email.com | (11) 91234-5678 | São Paulo, SP
+
+PROJETO 1
+Stack: React, TypeScript, Node.js
+Descrição do projeto 1
+
+PROJETO 2
+Stack: React, Tailwind
+Descrição do projeto 2
+
+PROJETO 3
+Stack: Vue, Firebase
+Descrição do projeto 3`;
+
 async function test() {
   try {
     console.log('Generating PDF...');
@@ -47,6 +67,12 @@ async function test() {
     fs.writeFileSync('test-output.pdf', pdfBuffer);
     console.log(`PDF generated successfully! Size: ${pdfBuffer.length} bytes`);
     console.log('Saved to test-output.pdf');
+
+    console.log('Generating three-projects PDF...');
+    const projectsBuffer = await createResumePdf(threeProjectsResume);
+    fs.writeFileSync('test-output-projetos.pdf', projectsBuffer);
+    console.log(`Three-projects PDF generated successfully! Size: ${projectsBuffer.length} bytes`);
+    console.log('Saved to test-output-projetos.pdf');
   } catch (error) {
     console.error('Error generating PDF:', error);
     process.exit(1);

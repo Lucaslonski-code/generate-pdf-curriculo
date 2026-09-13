@@ -1,7 +1,13 @@
 import { ContactInfo, ParsedResume, ResumeSection, SectionType } from './types';
 import { matchSectionType, DEFAULT_SECTION_TITLES } from './sectionDictionary';
-import { buildSectionContent } from './contentBuilders';
+import { buildSectionContent, buildTextContent } from './contentBuilders';
 import { isContactLine, parseContactLine } from './contactParser';
+import {
+  isStackLine,
+  isProjectTitleLine,
+  looksLikeProjects,
+  buildProjectsContent,
+} from './projectBlocks';
 
 const MAX_ROLE_WORD_COUNT = 8;
 const MAX_ROLE_LENGTH = 70;
@@ -27,6 +33,10 @@ function looksLikeRole(line: string): boolean {
   if (!trimmed || trimmed.length > MAX_ROLE_LENGTH) return false;
   if (matchSectionType(trimmed)) return false;
   if (isContactLine(trimmed)) return false;
+  // A stack line or a project title belongs to project content, never to
+  // the header. Treating "Stack: React, ..." as a professional role is what
+  // used to pull the first project's stack into the header.
+  if (isStackLine(trimmed) || isProjectTitleLine(trimmed)) return false;
   return trimmed.split(/\s+/).length <= MAX_ROLE_WORD_COUNT;
 }
 
@@ -43,6 +53,22 @@ function parseHeader(lines: string[]): {
   cursor: number;
 } {
   let cursor = 0;
+
+  // The document may be a project-only script with no resume header at all.
+  // If it starts with a project title followed by a stack line, there is no
+  // name/role to parse — otherwise "PROJETO 1" would be consumed as the name
+  // and its "Stack: ..." line as the role, scrambling the first project.
+  const firstLine = lines[cursor]?.trim() ?? '';
+  const nextNonEmpty = lines.slice(1).find((line) => line.trim() !== '');
+  if (
+    firstLine !== '' &&
+    isProjectTitleLine(firstLine) &&
+    nextNonEmpty !== undefined &&
+    isStackLine(nextNonEmpty)
+  ) {
+    return { name: 'Currículo', role: undefined, contact: {}, cursor: 0 };
+  }
+
   const name = lines[cursor]?.trim() ?? '';
   cursor++;
 
@@ -107,20 +133,37 @@ function parseResumeUnsafe(rawText: string): ParsedResume {
   const { name, role, contact, cursor } = parseHeader(lines);
   const { rawSections, introLines } = splitIntoRawSections(lines.slice(cursor));
 
-  const sections: ResumeSection[] = rawSections.map((raw) => ({
-    type: raw.type,
-    title: DEFAULT_SECTION_TITLES[raw.type],
-    content: buildSectionContent(raw.type, trimBlankEdges(raw.lines)),
-  }));
+  const sections: ResumeSection[] = rawSections.map((raw) => {
+    const lines = trimBlankEdges(raw.lines);
+    // If a section that would normally be prose (summary, other) actually
+    // contains structured project blocks (title + stack + description), keep
+    // it in its original position but parse it as projects instead of
+    // flattening it into a paragraph.
+    const type =
+      raw.type !== 'projects' && looksLikeProjects(lines) ? 'projects' : raw.type;
+    return {
+      type,
+      title: DEFAULT_SECTION_TITLES[type],
+      content: buildSectionContent(type, lines),
+    };
+  });
 
   const trimmedIntro = trimBlankEdges(introLines);
   const hasSummary = sections.some((section) => section.type === 'summary');
 
-  if (trimmedIntro.length > 0 && !hasSummary) {
+  if (trimmedIntro.length > 0 && looksLikeProjects(trimmedIntro)) {
+    // Un-headed project scripts at the top of the document keep their order
+    // and grouping instead of being swallowed into a single summary block.
+    sections.unshift({
+      type: 'projects',
+      title: DEFAULT_SECTION_TITLES.projects,
+      content: buildProjectsContent(trimmedIntro),
+    });
+  } else if (trimmedIntro.length > 0 && !hasSummary) {
     sections.unshift({
       type: 'summary',
       title: DEFAULT_SECTION_TITLES.summary,
-      content: buildSectionContent('summary', trimmedIntro),
+      content: buildTextContent(trimmedIntro),
     });
   }
 

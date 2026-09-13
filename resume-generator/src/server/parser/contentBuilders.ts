@@ -1,4 +1,5 @@
 import { EntryBlock, SectionContent, SectionType } from './types';
+import { buildProjectsContent } from './projectBlocks';
 
 const BULLET_PATTERN = /^[-•*–]\s*/;
 const DATE_HINT_PATTERN = /\d{4}|atual|presente|current|hoje|now/i;
@@ -121,11 +122,12 @@ export function buildTextContent(lines: string[]): SectionContent {
 }
 
 const LIST_TYPES: SectionType[] = ['skills', 'certifications', 'languages'];
-const ENTRY_TYPES: SectionType[] = ['experience', 'projects', 'education'];
+const ENTRY_TYPES: SectionType[] = ['experience', 'education'];
 
 /** Dispatches to the correct content builder based on the section type. */
 export function buildSectionContent(type: SectionType, lines: string[]): SectionContent {
   if (LIST_TYPES.includes(type)) return buildListContent(lines);
+  if (type === 'projects') return buildProjectsContent(lines);
   if (ENTRY_TYPES.includes(type)) return buildEntriesContent(lines);
   return buildTextContent(lines);
 }

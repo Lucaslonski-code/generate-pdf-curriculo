@@ -10,6 +10,8 @@ test('matchSectionType recognizes Portuguese and English variants', () => {
   assert.equal(matchSectionType('Certificates'), 'certifications');
   assert.equal(matchSectionType('Professional Summary'), 'summary');
   assert.equal(matchSectionType('Projetos Relevantes'), 'projects');
+  assert.equal(matchSectionType('Portfólio'), 'projects');
+  assert.equal(matchSectionType('Projetos Desenvolvidos'), 'projects');
 });
 
 test('matchSectionType is case- and accent-insensitive', () => {

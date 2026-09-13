@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildListContent, buildEntriesContent, buildTextContent } from './contentBuilders';
+import { buildListContent, buildEntriesContent, buildSectionContent, buildTextContent } from './contentBuilders';
 
 test('buildListContent splits a comma-separated line into items', () => {
   const content = buildListContent(['JavaScript, TypeScript, Node.js']);
@@ -47,4 +47,26 @@ test('buildTextContent joins each blank-line-separated block into one paragraph'
     kind: 'text',
     paragraphs: ['Primeira linha. Segunda linha.', 'Outro parágrafo.'],
   });
+});
+
+test('buildSectionContent parses projects with title, stack and description in order', () => {
+  const content = buildSectionContent('projects', [
+    'PROJETO 1',
+    'Stack: React, TypeScript, Node.js',
+    'Descrição do projeto 1',
+    'PROJETO 2',
+    'Stack: React, Tailwind',
+    'Descrição do projeto 2',
+  ]);
+
+  assert.equal(content.kind, 'entries');
+  if (content.kind !== 'entries') return;
+
+  assert.equal(content.entries.length, 2);
+  assert.equal(content.entries[0].title, 'PROJETO 1');
+  assert.equal(content.entries[0].stack, 'Stack: React, TypeScript, Node.js');
+  assert.deepEqual(content.entries[0].description, ['Descrição do projeto 1']);
+  assert.equal(content.entries[1].title, 'PROJETO 2');
+  assert.equal(content.entries[1].stack, 'Stack: React, Tailwind');
+  assert.deepEqual(content.entries[1].description, ['Descrição do projeto 2']);
 });

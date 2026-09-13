@@ -73,16 +73,16 @@ body {
 
 /* Layout shared by every template ------------------------------------ */
 
-.content {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
+/* Vertical stacking is plain block flow (no flex/grid/columns), so the
+   order of the source content is always the order of the rendered pages.
+   Spacing between siblings uses margin instead of gap so nothing can
+   reflow entries horizontally or regroup titles/stacks/descriptions. */
+.content > * + * {
+  margin-top: var(--space-5);
 }
 
-.section-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+.section-body > * + * {
+  margin-top: var(--space-3);
 }
 
 .paragraph {
@@ -96,7 +96,8 @@ body {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2) var(--space-3);
+  row-gap: var(--space-2);
+  column-gap: var(--space-3);
 }
 
 .entry-header {
@@ -105,6 +106,13 @@ body {
   align-items: baseline;
   gap: var(--space-3);
   margin-bottom: 3px;
+}
+
+.entry-stack {
+  margin: 2px 0;
+  font-size: var(--size-meta);
+  font-weight: 600;
+  color: var(--color-accent);
 }
 
 .entry-description {
@@ -141,9 +149,11 @@ body {
   display: block;
 }
 
-/* Prevent a job entry or section from being split across two pages. */
+/* Prevent a job entry or section from being split across two pages, so a
+   project keeps its title + stack + description together. */
 .section,
 .entry {
+  display: block;
   break-inside: avoid;
   page-break-inside: avoid;
 }

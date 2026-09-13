@@ -11,6 +11,9 @@ export type SectionType =
 export interface EntryBlock {
   title: string;
   meta?: string;
+  /** Technology/stack line, kept as its own field so it renders as a unit
+   * attached to its project instead of being merged into the description. */
+  stack?: string;
   description: string[];
   bullets: string[];
 }

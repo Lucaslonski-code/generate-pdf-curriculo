@@ -49,6 +49,64 @@ Sem cargo nem contato.`);
   assert.deepEqual(resume.contact, {});
 });
 
+test('parseResume keeps three projects with their stacks and descriptions as sequential units', () => {
+  const resume = parseResume(`João Silva
+Desenvolvedor Full Stack
+joao@email.com
+
+PROJETO 1
+Stack: React, TypeScript, Node.js
+Descrição do projeto 1
+
+PROJETO 2
+Stack: React, Tailwind
+Descrição do projeto 2
+
+PROJETO 3
+Stack: Vue, Firebase
+Descrição do projeto 3`);
+
+  const projectSections = resume.sections.filter((section) => section.type === 'projects');
+  assert.equal(projectSections.length, 1);
+  const section = projectSections[0];
+  assert.equal(section.content.kind, 'entries');
+  if (section.content.kind !== 'entries') return;
+
+  const flat = section.content.entries.flatMap((entry) => {
+    const seq: string[] = [entry.title];
+    if (entry.meta) seq.push(entry.meta);
+    if (entry.stack) seq.push(entry.stack);
+    seq.push(...entry.description, ...entry.bullets);
+    return seq;
+  });
+
+  assert.deepEqual(flat, [
+    'PROJETO 1',
+    'Stack: React, TypeScript, Node.js',
+    'Descrição do projeto 1',
+    'PROJETO 2',
+    'Stack: React, Tailwind',
+    'Descrição do projeto 2',
+    'PROJETO 3',
+    'Stack: Vue, Firebase',
+    'Descrição do projeto 3',
+  ]);
+});
+
+test('parseResume does not swallow project content into the header', () => {
+  const resume = parseResume(`PROJETO 1
+Stack: React, TypeScript, Node.js
+Descrição do projeto 1`);
+
+  assert.equal(resume.name, 'Currículo');
+  assert.equal(resume.role, undefined);
+  const projectSection = resume.sections.find((section) => section.type === 'projects');
+  assert.ok(projectSection);
+  if (!projectSection || projectSection.content.kind !== 'entries') return;
+  assert.equal(projectSection.content.entries[0].title, 'PROJETO 1');
+  assert.equal(projectSection.content.entries[0].stack, 'Stack: React, TypeScript, Node.js');
+});
+
 test('parseResume never throws and always returns a renderable resume', () => {
   assert.doesNotThrow(() => parseResume(''));
   assert.doesNotThrow(() => parseResume('\n\n\n'));
