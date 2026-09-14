@@ -2,6 +2,7 @@ import { EntryBlock, SectionContent } from './types';
 
 const BULLET_PATTERN = /^[-•*–]\s*/;
 const STACK_LABEL_PATTERN = /^(stack|stacks|tecnologias?|tech stack|tecnologias utilizadas|ferramentas)\s*[:：]/i;
+const ATUACAO_LABEL_PATTERN = /^(atua[cç][aã]o|atuacao|descricao|descri[cç][aã]o|descricao|description|responsabilidades?|realiza[cç][oõ]es?)\s*[:：]/i;
 // A project title must start with "Projeto" followed by a number, colon or dash.
  // This avoids matching prose like "Projeto em parceria com ...".
  // \s* allows "Projeto:App" (no space) and "Projeto 1" (space + digit).
@@ -26,6 +27,11 @@ export function isProjectTitleLine(line: string): boolean {
   return PROJECT_TITLE_PATTERN.test(stripped);
 }
 
+/** True when a stripped line looks like an "Atuação:" / "Descrição:" label. */
+function isAtuacaoLine(strippedLine: string): boolean {
+  return strippedLine !== '' && ATUACAO_LABEL_PATTERN.test(strippedLine);
+}
+
 function isMetaLine(line: string): boolean {
   return (
     line !== '' &&
@@ -36,11 +42,12 @@ function isMetaLine(line: string): boolean {
 }
 
 /**
- * Splits lines into project blocks. A new block starts at every project
- * title line, so projects stay separate units even when the source has no
- * blank lines between them (which is what happened with AI-generated
- * scripts that packed project 1, stack and description on consecutive
- * lines).
+ * Splits lines into project blocks. A new block starts at:
+ * 1. Blank line
+ * 2. Explicit project title line ("Projeto N", "Projeto: X")
+ * 3. A "bare title" line followed by a stack line (lookahead) — handles
+ *    AI-generated resumes like "Auronyx Backend\n* Stack: ...\n* Atuação: ...\nSimula-IA\n* Stack: ..."
+ *    without blank lines or "Projeto N" prefixes.
  */
 export function splitProjectBlocks(lines: string[]): string[][] {
   const blocks: string[][] = [];
@@ -52,14 +59,40 @@ export function splitProjectBlocks(lines: string[]): string[][] {
     current = [];
   };
 
-  for (const line of lines) {
-    if (line.trim() === '') {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (trimmed === '') {
       flush();
       continue;
     }
+
+    // Explicit project title ("Projeto N", "Projeto: X") always starts a new block
     if (isProjectTitleLine(line)) {
       flush();
+      current.push(line);
+      continue;
     }
+
+    // Lookahead: if this line is a non-bullet, non-stack, non-meta "title-like" line
+    // and the NEXT non-empty line is a stack line, treat as project boundary
+    const stripped = stripBullet(line);
+    const isBullet = BULLET_PATTERN.test(trimmed);
+    const isStack = isStackLine(line);
+    const isMeta = isMetaLine(line);
+
+    if (!isBullet && !isStack && !isMeta && stripped !== '') {
+      // Find next non-empty line
+      let nextIdx = i + 1;
+      while (nextIdx < lines.length && lines[nextIdx].trim() === '') {
+        nextIdx++;
+      }
+      if (nextIdx < lines.length && isStackLine(lines[nextIdx])) {
+        flush();
+      }
+    }
+
     current.push(line);
   }
   flush();
@@ -89,15 +122,21 @@ export function buildProjectEntry(blockLines: string[]): EntryBlock {
 
   let stack: string | undefined;
   if (isStackLine(lines[index] ?? '')) {
-    stack = lines[index].trim();
+    stack = stripBullet(lines[index]);
     index += 1;
   }
 
   const description: string[] = [];
   const bullets: string[] = [];
   for (const line of lines.slice(index)) {
-    if (BULLET_PATTERN.test(line)) bullets.push(stripBullet(line));
-    else description.push(line);
+    const stripped = stripBullet(line);
+    // Treat "Atuação: ..." / "Descrição: ..." lines as description, not bullets,
+    // even when they start with a bullet marker in the source (e.g. "* Atuação: ...").
+    if (BULLET_PATTERN.test(line) && !isAtuacaoLine(stripped)) {
+      bullets.push(stripped);
+    } else {
+      description.push(stripped);
+    }
   }
 
   return { title, meta, stack, description, bullets };
