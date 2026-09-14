@@ -56,16 +56,20 @@ function parseHeader(lines: string[]): {
 
   // The document may be a project-only script with no resume header at all.
   // If it starts with a project title followed by a stack line, there is no
-  // name/role to parse — otherwise "PROJETO 1" would be consumed as the name
-  // and its "Stack: ..." line as the role, scrambling the first project.
+  // name/role to parse — otherwise the first project's title would be consumed
+  // as the name and its "Stack: ..." line as the role, scrambling the first project.
+  // We detect this by checking for the pattern: Title line -> Stack line.
+  // This works for both explicit "Projeto N" titles and bare project names.
   const firstLine = lines[cursor]?.trim() ?? '';
   const nextNonEmpty = lines.slice(1).find((line) => line.trim() !== '');
-  if (
+  const looksLikeProjectStart =
     firstLine !== '' &&
-    isProjectTitleLine(firstLine) &&
     nextNonEmpty !== undefined &&
-    isStackLine(nextNonEmpty)
-  ) {
+    isStackLine(nextNonEmpty) &&
+    !isContactLine(firstLine) &&
+    !matchSectionType(firstLine);
+
+  if (looksLikeProjectStart) {
     return { name: 'Currículo', role: undefined, contact: {}, cursor: 0 };
   }
 

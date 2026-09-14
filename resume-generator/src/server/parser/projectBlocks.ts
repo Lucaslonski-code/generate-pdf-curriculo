@@ -3,8 +3,9 @@ import { EntryBlock, SectionContent } from './types';
 const BULLET_PATTERN = /^[-•*–]\s*/;
 const STACK_LABEL_PATTERN = /^(stack|stacks|tecnologias?|tech stack|tecnologias utilizadas|ferramentas)\s*[:：]/i;
 // A project title must start with "Projeto" followed by a number, colon or dash.
-// This avoids matching prose like "Projeto em parceria com ...".
-const PROJECT_TITLE_PATTERN = /^projeto\s+(\d+|[:\-—-])/i;
+ // This avoids matching prose like "Projeto em parceria com ...".
+ // \s* allows "Projeto:App" (no space) and "Projeto 1" (space + digit).
+ const PROJECT_TITLE_PATTERN = /^projeto\s*(\d+|[:\-—-])/i;
 const DATE_HINT_PATTERN = /\d{4}|atual|presente|current|hoje|now/i;
 const MAX_META_LINE_LENGTH = 80;
 
@@ -107,10 +108,14 @@ export function looksLikeProjects(lines: string[]): boolean {
   const blocks = splitProjectBlocks(lines);
   if (blocks.length === 0) return false;
 
-  const titleCount = lines.filter(isProjectTitleLine).length;
-  const stackCount = lines.filter(isStackLine).length;
+  // A block is project-like if it contains a stack line (e.g. "Stack: ...").
+  // This works for both explicit "Projeto N" titles and bare project names
+  // separated by blank lines, which is the common format in AI-generated resumes.
+  const hasStackLine = blocks.some((block) =>
+    block.some((line) => isStackLine(line))
+  );
 
-  return titleCount >= 1 && stackCount >= 1;
+  return hasStackLine;
 }
 
 /** Builds an explicit projects section, preserving each project as a unit. */
