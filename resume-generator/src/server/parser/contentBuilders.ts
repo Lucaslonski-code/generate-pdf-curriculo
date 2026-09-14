@@ -40,8 +40,9 @@ function detectInlineSeparator(line: string): string | null {
 }
 
 /**
- * Builds a "list" section (skills, languages, certifications).
+ * Builds a "list" section (certifications, languages).
  * Accepts bullet lists, one-item-per-line, or comma/pipe separated lines.
+ * Skills are handled separately by buildSkillsContent to preserve categories.
  */
 export function buildListContent(lines: string[]): SectionContent {
   const items: string[] = [];
@@ -64,6 +65,41 @@ export function buildListContent(lines: string[]): SectionContent {
   }
 
   return { kind: 'list', items };
+}
+
+/**
+ * Builds a "skills" section preserving category → technologies structure.
+ * Each line is expected to be "Categoria: tech1, tech2, tech3" or similar.
+ * Returns entries where title = category, description = technologies list.
+ */
+export function buildSkillsContent(lines: string[]): SectionContent {
+  const entries: EntryBlock[] = [];
+
+  for (const rawLine of lines) {
+    const line = stripBullet(rawLine);
+    if (!line) continue;
+
+    // Split on first colon to separate category from technologies
+    const colonIndex = line.indexOf(':');
+    if (colonIndex > 0) {
+      const category = line.substring(0, colonIndex).trim();
+      const technologies = line.substring(colonIndex + 1).trim();
+      entries.push({
+        title: category,
+        description: technologies ? [technologies] : [],
+        bullets: [],
+      });
+    } else {
+      // Line without colon: treat as a category with no explicit technologies
+      entries.push({
+        title: line,
+        description: [],
+        bullets: [],
+      });
+    }
+  }
+
+  return { kind: 'entries', entries };
 }
 
 /**
@@ -121,11 +157,12 @@ export function buildTextContent(lines: string[]): SectionContent {
   return { kind: 'text', paragraphs: paragraphs.filter(Boolean) };
 }
 
-const LIST_TYPES: SectionType[] = ['skills', 'certifications', 'languages'];
+const LIST_TYPES: SectionType[] = ['certifications', 'languages'];
 const ENTRY_TYPES: SectionType[] = ['experience', 'education'];
 
 /** Dispatches to the correct content builder based on the section type. */
 export function buildSectionContent(type: SectionType, lines: string[]): SectionContent {
+  if (type === 'skills') return buildSkillsContent(lines);
   if (LIST_TYPES.includes(type)) return buildListContent(lines);
   if (type === 'projects') return buildProjectsContent(lines);
   if (ENTRY_TYPES.includes(type)) return buildEntriesContent(lines);
