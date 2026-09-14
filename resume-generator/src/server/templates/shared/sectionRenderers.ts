@@ -12,6 +12,15 @@ function renderListContent(items: string[]): string {
   return `<ul class="tag-list">${listItems}</ul>`;
 }
 
+function renderSkillsContent(entries: EntryBlock[]): string {
+  const items = entries.map((entry) => {
+    const title = escapeHtml(entry.title);
+    const desc = entry.description.map(escapeHtml).join(', ');
+    return `<dt class="skill-category">${title}</dt><dd class="skill-technologies">${desc}</dd>`;
+  }).join('\n');
+  return `<dl class="skills-list">${items}</dl>`;
+}
+
 function renderEntry(entry: EntryBlock): string {
   const metaHtml = entry.meta ? `<span class="entry-meta">${escapeHtml(entry.meta)}</span>` : '';
   const stackHtml = entry.stack ? `<p class="entry-stack">${escapeHtml(entry.stack)}</p>` : '';
@@ -49,6 +58,9 @@ function renderSectionContent(section: ResumeSection): string {
     case 'list':
       return renderListContent(section.content.items);
     case 'entries':
+      if (section.type === 'skills') {
+        return renderSkillsContent(section.content.entries);
+      }
       return renderEntriesContent(section.content.entries);
   }
 }

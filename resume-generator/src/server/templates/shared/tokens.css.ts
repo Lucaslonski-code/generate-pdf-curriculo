@@ -129,6 +129,22 @@ body {
   margin-bottom: 2px;
 }
 
+.skills-list {
+  margin: 0;
+  padding: 0;
+}
+
+.skill-category {
+  font-weight: 600;
+  color: var(--color-ink);
+  margin-top: var(--space-2);
+}
+
+.skill-technologies {
+  margin: 0 0 var(--space-1) 0;
+  color: var(--color-body);
+}
+
 .contact-row {
   display: flex;
   flex-wrap: wrap;
