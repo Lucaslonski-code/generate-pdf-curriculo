@@ -3,36 +3,42 @@ import { escapeHtml } from '../../utils/escapeHtml';
 
 function renderTextContent(paragraphs: string[]): string {
   return paragraphs
-    .map((paragraph) => `<p class="paragraph">${escapeHtml(paragraph)}</p>`)
+    .map((paragraph) => `<p class="paragraph">${escapeHtml(sanitizeText(paragraph))}</p>`)
     .join('\n');
 }
 
 function renderListContent(items: string[]): string {
-  const listItems = items.map((item) => `<li>${escapeHtml(item)}</li>`).join('');
+  const listItems = items.map((item) => `<li>${escapeHtml(sanitizeText(item))}</li>`).join('');
   return `<ul class="tag-list">${listItems}</ul>`;
 }
 
 function renderSkillsContent(entries: EntryBlock[]): string {
   const items = entries.map((entry) => {
-    const title = escapeHtml(entry.title);
-    const desc = entry.description.map(escapeHtml).join(', ');
+    const title = escapeHtml(sanitizeText(entry.title));
+    const desc = entry.description.map((d) => escapeHtml(sanitizeText(d))).join(', ');
     return `<dt class="skill-category">${title}</dt><dd class="skill-technologies">${desc}</dd>`;
   }).join('\n');
   return `<dl class="skills-list">${items}</dl>`;
 }
 
+function sanitizeText(text: string): string {
+  return text.replace(/^[\s*•–-]+/, '').trim();
+}
+
 function renderEntry(entry: EntryBlock): string {
   const metaHtml = entry.meta ? `<span class="entry-meta">${escapeHtml(entry.meta)}</span>` : '';
-  const stackHtml = entry.stack ? `<p class="entry-stack">${escapeHtml(entry.stack)}</p>` : '';
+  const stackHtml = entry.stack
+    ? `<p class="entry-stack">${escapeHtml(sanitizeText(entry.stack))}</p>`
+    : '';
 
   const descriptionHtml = entry.description
-    .map((line) => `<p class="entry-description">${escapeHtml(line)}</p>`)
+    .map((line) => `<p class="entry-description">${escapeHtml(sanitizeText(line))}</p>`)
     .join('\n');
 
   const bulletsHtml =
     entry.bullets.length > 0
       ? `<ul class="entry-bullets">${entry.bullets
-          .map((bullet) => `<li>${escapeHtml(bullet)}</li>`)
+          .map((bullet) => `<li>${escapeHtml(sanitizeText(bullet))}</li>`)
           .join('')}</ul>`
       : '';
 

@@ -172,5 +172,9 @@ body {
   display: block;
   break-inside: avoid;
   page-break-inside: avoid;
+  /* Establish independent formatting context to prevent children from
+     participating in any ancestor flex/grid layout. */
+  contain: layout paint;
+  overflow-wrap: anywhere;
 }
 `;
