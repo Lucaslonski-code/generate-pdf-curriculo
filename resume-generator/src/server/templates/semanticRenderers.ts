@@ -206,13 +206,16 @@ function renderLanguages(languagesSection: LanguagesSection): string {
 }
 
 export function renderResume(resume: StructuredResume): string {
-  let headerHtml = '';
   const sectionsHtml: string[] = [];
+  let title = 'Currículo';
 
   for (const section of resume.sections) {
     switch (section.type) {
       case 'header':
-        headerHtml = renderHeader(section.data);
+        sectionsHtml.push(renderHeader(section.data));
+        if (title === 'Currículo') {
+          title = section.data.name;
+        }
         break;
       case 'summary':
         sectionsHtml.push(renderSummary(section.data));
@@ -238,9 +241,6 @@ export function renderResume(resume: StructuredResume): string {
     }
   }
 
-  const headerSection = resume.sections.find(s => s.type === 'header');
-  const title = headerSection && headerSection.type === 'header' ? headerSection.data.name : 'Currículo';
-
   return `
     <!DOCTYPE html>
     <html lang="pt-BR">
@@ -250,7 +250,6 @@ export function renderResume(resume: StructuredResume): string {
       <style>${loadTemplateCss()}</style>
     </head>
     <body>
-      ${headerHtml}
       <main class="content">
         ${sectionsHtml.join('\n')}
       </main>

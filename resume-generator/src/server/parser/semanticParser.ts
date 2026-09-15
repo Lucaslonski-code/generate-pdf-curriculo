@@ -92,7 +92,7 @@ function parseEntityFields(
 ): Record<string, string | string[] | undefined> {
   const result: Record<string, string | string[] | undefined> = {};
   const seenFields = new Set<string>();
-  let fieldIndex = 0;
+  let expectedFieldIndex = 0;
 
   while (state.index < state.tokens.length) {
     const token = peek(state);
@@ -133,10 +133,10 @@ function parseEntityFields(
         );
       }
 
-      if (fieldIndex < fields.length && fields[fieldIndex].name !== fieldName) {
-        const expectedField = fields[fieldIndex].name;
+      const fieldPosition = fields.findIndex(f => f.name === fieldName);
+      if (fieldPosition < expectedFieldIndex) {
         throw new ParseError(
-          `Field ${fieldName} out of order in ${entityName}. Expected ${expectedField} next.`,
+          `Field ${fieldName} out of order in ${entityName}. Cannot go back to a previous field.`,
           token.line,
           token.column
         );
@@ -154,11 +154,7 @@ function parseEntityFields(
       }
 
       seenFields.add(fieldName);
-      fieldIndex++;
-
-      while (fieldIndex < fields.length && !fields[fieldIndex].required) {
-        fieldIndex++;
-      }
+      expectedFieldIndex = fieldPosition + 1;
     } else if (token.type === 'ENDPOINT_CLOSE') {
       throw new ParseError(
         `Unexpected closing endpoint ${token.value} inside ${entityName}`,

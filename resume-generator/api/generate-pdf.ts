@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createResumePdf } from '../src/server/services/pdf.service';
+import { ParseError } from '../src/server/parser';
 
 // A real resume rarely exceeds a few thousand characters. This cap is a
 // defensive guard against pathological input (e.g. an entire book pasted
@@ -47,6 +48,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     res.setHeader('Content-Disposition', 'attachment; filename="curriculo.pdf"');
     res.status(200).send(pdfBuffer);
   } catch (error) {
+    if (error instanceof ParseError) {
+      res.status(400).json({
+        error: 'Roteiro semântico inválido',
+        message: error.message,
+        line: error.line,
+        column: error.column,
+      });
+      return;
+    }
     console.error('Erro ao gerar PDF:', error);
     res.status(500).json({ error: 'Não foi possível gerar o PDF. Tente novamente.' });
   }
