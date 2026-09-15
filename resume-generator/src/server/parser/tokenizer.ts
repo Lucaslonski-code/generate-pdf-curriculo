@@ -19,7 +19,7 @@ export function tokenize(input: string): Token[] {
   let lineNumber = 1;
 
   for (const line of lines) {
-    let column = 1;
+    const column = 1;
     const trimmed = line.trim();
 
     const match = trimmed.match(ENDPOINT_PATTERN);

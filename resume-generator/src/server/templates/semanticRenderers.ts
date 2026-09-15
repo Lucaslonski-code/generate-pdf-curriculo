@@ -1,19 +1,19 @@
-import { StructuredResume, Header, Summary, ProjectsSection, ExperienceSection, EducationSection, SkillsSection } from '../parser/semanticTypes';
+import { StructuredResume, Header, Summary, ProjectsSection, ExperienceSection, EducationSection, SkillsSection, CertificationsSection, LanguagesSection, Certification, Language } from '../parser/semanticTypes';
 import { escapeHtml } from '../utils/escapeHtml';
 
 function renderHeader(header: Header): string {
   const roleHtml = header.role ? `<p class="role">${escapeHtml(header.role)}</p>` : '';
   const contactParts: string[] = [];
-  
-  if (header.contact.email) contactParts.push(`<span class="contact-item"><span class="contact-icon">📧</span>${escapeHtml(header.contact.email)}</span>`);
-  if (header.contact.phone) contactParts.push(`<span class="contact-item"><span class="contact-icon">📞</span>${escapeHtml(header.contact.phone)}</span>`);
-  if (header.contact.linkedin) contactParts.push(`<span class="contact-item"><span class="contact-icon">💼</span>${escapeHtml(header.contact.linkedin)}</span>`);
-  if (header.contact.github) contactParts.push(`<span class="contact-item"><span class="contact-icon">💻</span>${escapeHtml(header.contact.github)}</span>`);
-  if (header.contact.website) contactParts.push(`<span class="contact-item"><span class="contact-icon">🌐</span>${escapeHtml(header.contact.website)}</span>`);
-  if (header.contact.location) contactParts.push(`<span class="contact-item"><span class="contact-icon">📍</span>${escapeHtml(header.contact.location)}</span>`);
-  
+
+  if (header.email) contactParts.push(`<span class="contact-item"><span class="contact-icon">📧</span>${escapeHtml(header.email)}</span>`);
+  if (header.phone) contactParts.push(`<span class="contact-item"><span class="contact-icon">📞</span>${escapeHtml(header.phone)}</span>`);
+  if (header.linkedin) contactParts.push(`<span class="contact-item"><span class="contact-icon">💼</span>${escapeHtml(header.linkedin)}</span>`);
+  if (header.github) contactParts.push(`<span class="contact-item"><span class="contact-icon">💻</span>${escapeHtml(header.github)}</span>`);
+  if (header.website) contactParts.push(`<span class="contact-item"><span class="contact-icon">🌐</span>${escapeHtml(header.website)}</span>`);
+  if (header.location) contactParts.push(`<span class="contact-item"><span class="contact-icon">📍</span>${escapeHtml(header.location)}</span>`);
+
   const contactHtml = contactParts.length > 0 ? `<div class="contact-row">${contactParts.join('')}</div>` : '';
-  
+
   return `
     <header class="header">
       <h1 class="name">${escapeHtml(header.name)}</h1>
@@ -38,7 +38,7 @@ function renderSummary(summary: Summary): string {
 function renderProject(project: { name: string; stack?: string; description?: string }): string {
   const stackHtml = project.stack ? `<p class="entry-stack">${escapeHtml(project.stack)}</p>` : '';
   const descHtml = project.description ? `<p class="entry-description">${escapeHtml(project.description)}</p>` : '';
-  
+
   return `
     <article class="entry">
       <div class="entry-header">
@@ -62,17 +62,17 @@ function renderProjects(projectsSection: ProjectsSection): string {
   `;
 }
 
-function renderJob(job: { title: string; company?: string; period?: string; description?: string; bullets: string[] }): string {
+function renderJob(job: { title: string; company?: string; period?: string; description?: string; bullets?: string[] }): string {
   const metaParts: string[] = [];
   if (job.company) metaParts.push(escapeHtml(job.company));
   if (job.period) metaParts.push(escapeHtml(job.period));
   const metaHtml = metaParts.length > 0 ? `<span class="entry-meta">${metaParts.join(' — ')}</span>` : '';
-  
+
   const descHtml = job.description ? `<p class="entry-description">${escapeHtml(job.description)}</p>` : '';
-  const bulletsHtml = job.bullets.length > 0
+  const bulletsHtml = job.bullets && job.bullets.length > 0
     ? `<ul class="entry-bullets">${job.bullets.map(b => `<li>${escapeHtml(b)}</li>`).join('')}</ul>`
     : '';
-  
+
   return `
     <article class="entry">
       <div class="entry-header">
@@ -97,12 +97,17 @@ function renderExperience(experienceSection: ExperienceSection): string {
   `;
 }
 
-function renderDegree(degree: { institution: string; course: string; period?: string }): string {
-  const title = degree.course && degree.institution
-    ? `${escapeHtml(degree.course)} | ${escapeHtml(degree.institution)}`
-    : escapeHtml(degree.course || degree.institution);
+function renderDegree(degree: { course?: string; institution?: string; period?: string }): string {
+  let title = '';
+  if (degree.course && degree.institution) {
+    title = `${escapeHtml(degree.course)} | ${escapeHtml(degree.institution)}`;
+  } else if (degree.course) {
+    title = escapeHtml(degree.course);
+  } else if (degree.institution) {
+    title = escapeHtml(degree.institution);
+  }
   const metaHtml = degree.period ? `<span class="entry-meta">${escapeHtml(degree.period)}</span>` : '';
-  
+
   return `
     <article class="entry">
       <div class="entry-header">
@@ -125,11 +130,12 @@ function renderEducation(educationSection: EducationSection): string {
   `;
 }
 
-function renderSkillCategory(category: { name: string; technologies: string }): string {
+function renderSkillCategory(category: { name: string; technologies?: string }): string {
+  const techHtml = category.technologies ? `<dd class="skill-technologies">${escapeHtml(category.technologies)}</dd>` : '<dd class="skill-technologies"></dd>';
   return `
     <div class="skill-category-block">
       <dt class="skill-category">${escapeHtml(category.name)}</dt>
-      <dd class="skill-technologies">${escapeHtml(category.technologies)}</dd>
+      ${techHtml}
     </div>
   `;
 }
@@ -146,13 +152,54 @@ function renderSkills(skillsSection: SkillsSection): string {
   `;
 }
 
-function renderListSection(title: string, items: string[]): string {
-  const itemsHtml = items.map(item => `<li>${escapeHtml(item)}</li>`).join('');
+function renderCertification(cert: Certification): string {
+  const issuerHtml = cert.issuer ? `<span class="cert-issuer">${escapeHtml(cert.issuer)}</span>` : '';
+  const yearHtml = cert.year ? `<span class="cert-year">${escapeHtml(cert.year)}</span>` : '';
+  const metaParts = [issuerHtml, yearHtml].filter(Boolean).join(' — ');
+  const metaHtml = metaParts ? `<span class="entry-meta">${metaParts}</span>` : '';
+
+  return `
+    <article class="entry">
+      <div class="entry-header">
+        <span class="entry-title">${escapeHtml(cert.name)}</span>
+        ${metaHtml}
+      </div>
+    </article>
+  `;
+}
+
+function renderCertifications(certificationsSection: CertificationsSection): string {
+  const certsHtml = certificationsSection.certifications.map(renderCertification).join('\n');
   return `
     <section class="section">
-      <h2 class="section-title">${escapeHtml(title)}</h2>
+      <h2 class="section-title">Certificações</h2>
       <div class="section-body">
-        <ul class="tag-list">${itemsHtml}</ul>
+        ${certsHtml}
+      </div>
+    </section>
+  `;
+}
+
+function renderLanguage(lang: Language): string {
+  const profHtml = lang.proficiency ? `<span class="entry-meta">${escapeHtml(lang.proficiency)}</span>` : '';
+
+  return `
+    <article class="entry">
+      <div class="entry-header">
+        <span class="entry-title">${escapeHtml(lang.name)}</span>
+        ${profHtml}
+      </div>
+    </article>
+  `;
+}
+
+function renderLanguages(languagesSection: LanguagesSection): string {
+  const langsHtml = languagesSection.languages.map(renderLanguage).join('\n');
+  return `
+    <section class="section">
+      <h2 class="section-title">Idiomas</h2>
+      <div class="section-body">
+        ${langsHtml}
       </div>
     </section>
   `;
@@ -161,7 +208,7 @@ function renderListSection(title: string, items: string[]): string {
 export function renderResume(resume: StructuredResume): string {
   let headerHtml = '';
   const sectionsHtml: string[] = [];
-  
+
   for (const section of resume.sections) {
     switch (section.type) {
       case 'header':
@@ -183,17 +230,17 @@ export function renderResume(resume: StructuredResume): string {
         sectionsHtml.push(renderSkills(section.data));
         break;
       case 'certifications':
-        sectionsHtml.push(renderListSection('Certificações', section.data.items));
+        sectionsHtml.push(renderCertifications(section.data));
         break;
       case 'languages':
-        sectionsHtml.push(renderListSection('Idiomas', section.data.items));
+        sectionsHtml.push(renderLanguages(section.data));
         break;
     }
   }
-  
+
   const headerSection = resume.sections.find(s => s.type === 'header');
   const title = headerSection && headerSection.type === 'header' ? headerSection.data.name : 'Currículo';
-  
+
   return `
     <!DOCTYPE html>
     <html lang="pt-BR">
@@ -255,11 +302,6 @@ body {
 
 .paragraph { margin: 0; text-align: justify; }
 
-.tag-list {
-  margin: 0; padding: 0; list-style: none;
-  display: flex; flex-wrap: wrap; row-gap: var(--space-2); column-gap: var(--space-3);
-}
-
 .entry-header {
   display: flex; justify-content: space-between; align-items: baseline;
   gap: var(--space-3); margin-bottom: 3px;
@@ -310,6 +352,5 @@ body {
 
 .entry-title { font-weight: 700; font-size: 11pt; color: var(--color-ink); }
 .entry-meta { font-size: var(--size-meta); color: var(--color-muted); white-space: nowrap; }
-.tag-list li { font-size: 9.5pt; color: var(--color-ink); background: var(--color-surface); border: var(--border-hairline); border-radius: var(--radius-sm); padding: 3px 10px; }
   `;
 }

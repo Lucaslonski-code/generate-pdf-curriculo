@@ -9,8 +9,11 @@ import {
   EducationSection,
   SkillCategory,
   SkillsSection,
+  Certification,
+  CertificationsSection,
+  Language,
+  LanguagesSection,
   StructuredResume,
-  ContactInfo,
   ResumeSection,
 } from './semanticTypes';
 import { Token, TokenType, tokenize } from './tokenizer';
@@ -26,7 +29,7 @@ interface ParserState {
   tokens: Token[];
   index: number;
   sections: ResumeSection[];
-  currentSection: ResumeSection | null;
+  seenRootSections: Set<string>;
 }
 
 function peek(state: ParserState): Token {
@@ -45,8 +48,9 @@ function consume(state: ParserState, expectedType?: TokenType): Token {
 function expectEndpoint(state: ParserState, name: string, isClose: boolean): void {
   const token = peek(state);
   if (token.type !== (isClose ? 'ENDPOINT_CLOSE' : 'ENDPOINT_OPEN') || token.value !== name) {
+    const expected = isClose ? `[(/${name})]` : `[(${name})]`;
     throw new ParseError(
-      `Expected ${isClose ? '[(/' : '[(/'}${name}${'}]'}`,
+      `Expected ${expected}`,
       token.line,
       token.column
     );
@@ -75,54 +79,138 @@ function parseContentUntil(state: ParserState, endEndpoint: string): string {
   return lines.join('\n').trim();
 }
 
-function parseHeader(state: ParserState): Header {
-  expectEndpoint(state, 'HEADER', false);
-  const lines: string[] = [];
-  
+interface EntityFieldConfig {
+  name: string;
+  required: boolean;
+}
+
+function parseEntityFields(
+  state: ParserState,
+  entityName: string,
+  fields: EntityFieldConfig[],
+  endEntityName: string
+): Record<string, string | string[] | undefined> {
+  const result: Record<string, string | string[] | undefined> = {};
+  const seenFields = new Set<string>();
+  let fieldIndex = 0;
+
   while (state.index < state.tokens.length) {
     const token = peek(state);
-    if (token.type === 'ENDPOINT_CLOSE' && token.value === 'HEADER') {
+
+    if (token.type === 'EOF') {
+      throw new ParseError(`Unexpected end of input, expected [(/${endEntityName})]`, token.line, token.column);
+    }
+
+    if (token.type === 'ENDPOINT_CLOSE' && token.value === endEntityName) {
       break;
     }
+
     if (token.type === 'CONTENT') {
-      lines.push(token.value);
-    } else if (token.type === 'ENDPOINT_OPEN' || token.type === 'ENDPOINT_CLOSE') {
       throw new ParseError(
-        `Nested endpoints not allowed in HEADER`,
+        `Free content not allowed inside ${entityName}. Use explicit endpoints.`,
         token.line,
         token.column
       );
     }
-    consume(state);
-  }
-  expectEndpoint(state, 'HEADER', true);
 
-  const contact: ContactInfo = {};
-  let name = '';
-  let role: string | undefined;
+    if (token.type === 'ENDPOINT_OPEN') {
+      const fieldName = token.value;
 
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!name) {
-      name = trimmed;
-    } else if (!role && !trimmed.includes('@') && !trimmed.includes('linkedin') && !trimmed.includes('github')) {
-      role = trimmed;
-    } else {
-      if (trimmed.includes('@') && !contact.email) {
-        contact.email = trimmed.match(/[\w.+-]+@[\w-]+\.[\w.-]+/)?.[0] ?? trimmed;
-      } else if (trimmed.includes('linkedin') && !contact.linkedin) {
-        contact.linkedin = trimmed;
-      } else if (trimmed.includes('github') && !contact.github) {
-        contact.github = trimmed;
-      } else if (/(\+?\d[\d\s().-]{7,}\d)/.test(trimmed) && !contact.phone) {
-        contact.phone = trimmed.match(/(\+?\d[\d\s().-]{7,}\d)/)?.[0] ?? trimmed;
-      } else if (!contact.location) {
-        contact.location = trimmed;
+      const fieldConfig = fields.find(f => f.name === fieldName);
+      if (!fieldConfig) {
+        throw new ParseError(
+          `Unknown endpoint ${fieldName} in ${entityName}`,
+          token.line,
+          token.column
+        );
       }
+
+      if (seenFields.has(fieldName)) {
+        throw new ParseError(
+          `Duplicate field ${fieldName} in ${entityName}`,
+          token.line,
+          token.column
+        );
+      }
+
+      if (fieldIndex < fields.length && fields[fieldIndex].name !== fieldName) {
+        const expectedField = fields[fieldIndex].name;
+        throw new ParseError(
+          `Field ${fieldName} out of order in ${entityName}. Expected ${expectedField} next.`,
+          token.line,
+          token.column
+        );
+      }
+
+      consume(state);
+      const content = parseContentUntil(state, fieldName);
+      expectEndpoint(state, fieldName, true);
+
+      if (fieldName === 'BULLETS') {
+        const bulletLines = content.split('\n').filter(l => l.trim());
+        result[fieldName] = bulletLines;
+      } else {
+        result[fieldName] = content;
+      }
+
+      seenFields.add(fieldName);
+      fieldIndex++;
+
+      while (fieldIndex < fields.length && !fields[fieldIndex].required) {
+        fieldIndex++;
+      }
+    } else if (token.type === 'ENDPOINT_CLOSE') {
+      throw new ParseError(
+        `Unexpected closing endpoint ${token.value} inside ${entityName}`,
+        token.line,
+        token.column
+      );
+    } else {
+      consume(state);
     }
   }
 
-  return { name, role, contact };
+  expectEndpoint(state, endEntityName, true);
+
+  for (const field of fields) {
+    if (field.required && !seenFields.has(field.name)) {
+      throw new ParseError(
+        `${entityName} must have ${field.name}`,
+        peek(state).line,
+        peek(state).column
+      );
+    }
+  }
+
+  return result;
+}
+
+function parseHeader(state: ParserState): Header {
+  expectEndpoint(state, 'HEADER', false);
+
+  const headerFields: EntityFieldConfig[] = [
+    { name: 'NAME', required: true },
+    { name: 'ROLE', required: false },
+    { name: 'EMAIL', required: false },
+    { name: 'PHONE', required: false },
+    { name: 'LINKEDIN', required: false },
+    { name: 'GITHUB', required: false },
+    { name: 'WEBSITE', required: false },
+    { name: 'LOCATION', required: false },
+  ];
+
+  const fields = parseEntityFields(state, 'HEADER', headerFields, 'HEADER');
+
+  return {
+    name: fields.NAME as string,
+    role: fields.ROLE as string | undefined,
+    email: fields.EMAIL as string | undefined,
+    phone: fields.PHONE as string | undefined,
+    linkedin: fields.LINKEDIN as string | undefined,
+    github: fields.GITHUB as string | undefined,
+    website: fields.WEBSITE as string | undefined,
+    location: fields.LOCATION as string | undefined,
+  };
 }
 
 function parseSummary(state: ParserState): Summary {
@@ -134,63 +222,26 @@ function parseSummary(state: ParserState): Summary {
 
 function parseProject(state: ParserState): Project {
   expectEndpoint(state, 'PROJECT', false);
-  
-  let name = '';
-  let stack: string | undefined;
-  let description: string | undefined;
 
-  while (state.index < state.tokens.length) {
-    const token = peek(state);
-    
-    if (token.type === 'EOF') {
-      throw new ParseError('Unexpected end of input, expected [(/PROJECT)]', token.line, token.column);
-    }
-    
-    if (token.type === 'ENDPOINT_CLOSE' && token.value === 'PROJECT') {
-      break;
-    }
-    
-    if (token.type === 'ENDPOINT_OPEN') {
-      if (token.value === 'NAME') {
-        consume(state);
-        name = parseContentUntil(state, 'NAME');
-        expectEndpoint(state, 'NAME', true);
-      } else if (token.value === 'STACK') {
-        consume(state);
-        stack = parseContentUntil(state, 'STACK');
-        expectEndpoint(state, 'STACK', true);
-      } else if (token.value === 'DESCRIPTION') {
-        consume(state);
-        description = parseContentUntil(state, 'DESCRIPTION');
-        expectEndpoint(state, 'DESCRIPTION', true);
-      } else {
-        throw new ParseError(`Unknown endpoint ${token.value} in PROJECT`, token.line, token.column);
-      }
-    } else if (token.type === 'CONTENT') {
-      if (!name) {
-        name = token.value.trim();
-      } else if (!description) {
-        description = token.value.trim();
-      }
-      consume(state);
-    } else {
-      consume(state);
-    }
-  }
-  
-  expectEndpoint(state, 'PROJECT', true);
-  
-  if (!name) {
-    throw new ParseError('PROJECT must have a NAME', peek(state).line, peek(state).column);
-  }
-  
-  return { name, stack, description };
+  const projectFields: EntityFieldConfig[] = [
+    { name: 'NAME', required: true },
+    { name: 'STACK', required: false },
+    { name: 'DESCRIPTION', required: false },
+  ];
+
+  const fields = parseEntityFields(state, 'PROJECT', projectFields, 'PROJECT');
+
+  return {
+    name: fields.NAME as string,
+    stack: fields.STACK as string | undefined,
+    description: fields.DESCRIPTION as string | undefined,
+  };
 }
 
 function parseProjects(state: ParserState): ProjectsSection {
   expectEndpoint(state, 'PROJECTS', false);
   const projects: Project[] = [];
-  
+
   while (state.index < state.tokens.length) {
     const token = peek(state);
     if (token.type === 'ENDPOINT_CLOSE' && token.value === 'PROJECTS') {
@@ -199,91 +250,46 @@ function parseProjects(state: ParserState): ProjectsSection {
     if (token.type === 'ENDPOINT_OPEN' && token.value === 'PROJECT') {
       projects.push(parseProject(state));
     } else if (token.type === 'CONTENT') {
-      const lines = parseContentUntil(state, 'PROJECTS').split('\n');
-      for (const line of lines) {
-        if (line.trim()) {
-          projects.push({ name: line.trim() });
-        }
-      }
-      break;
+      throw new ParseError(
+        'Free content not allowed directly in PROJECTS. Use PROJECT endpoints.',
+        token.line,
+        token.column
+      );
     } else {
       consume(state);
     }
   }
-  
+
   expectEndpoint(state, 'PROJECTS', true);
   return { projects };
 }
 
 function parseJob(state: ParserState): Job {
   expectEndpoint(state, 'JOB', false);
-  
-  let title = '';
-  let company: string | undefined;
-  let period: string | undefined;
-  let description: string | undefined;
-  const bullets: string[] = [];
 
-  while (state.index < state.tokens.length) {
-    const token = peek(state);
-    
-    if (token.type === 'ENDPOINT_CLOSE' && token.value === 'JOB') {
-      break;
-    }
-    
-    if (token.type === 'ENDPOINT_OPEN') {
-      if (token.value === 'TITLE') {
-        consume(state);
-        title = parseContentUntil(state, 'TITLE');
-        expectEndpoint(state, 'TITLE', true);
-      } else if (token.value === 'COMPANY') {
-        consume(state);
-        company = parseContentUntil(state, 'COMPANY');
-        expectEndpoint(state, 'COMPANY', true);
-      } else if (token.value === 'PERIOD') {
-        consume(state);
-        period = parseContentUntil(state, 'PERIOD');
-        expectEndpoint(state, 'PERIOD', true);
-      } else if (token.value === 'DESCRIPTION') {
-        consume(state);
-        description = parseContentUntil(state, 'DESCRIPTION');
-        expectEndpoint(state, 'DESCRIPTION', true);
-      } else if (token.value === 'BULLETS') {
-        consume(state);
-        const bulletsText = parseContentUntil(state, 'BULLETS');
-        const bulletLines = bulletsText.split('\n').filter(l => l.trim());
-        for (const bl of bulletLines) {
-          bullets.push(bl.trim().replace(/^[-•*–]\s*/, ''));
-        }
-        expectEndpoint(state, 'BULLETS', true);
-      } else {
-        throw new ParseError(`Unknown endpoint ${token.value} in JOB`, token.line, token.column);
-      }
-    } else if (token.type === 'CONTENT') {
-      if (!title) {
-        title = token.value.trim();
-      } else if (!description) {
-        description = token.value.trim();
-      }
-      consume(state);
-    } else {
-      consume(state);
-    }
-  }
-  
-  expectEndpoint(state, 'JOB', true);
-  
-  if (!title) {
-    throw new ParseError('JOB must have a TITLE', peek(state).line, peek(state).column);
-  }
-  
-  return { title, company, period, description, bullets };
+  const jobFields: EntityFieldConfig[] = [
+    { name: 'TITLE', required: true },
+    { name: 'COMPANY', required: false },
+    { name: 'PERIOD', required: false },
+    { name: 'DESCRIPTION', required: false },
+    { name: 'BULLETS', required: false },
+  ];
+
+  const fields = parseEntityFields(state, 'JOB', jobFields, 'JOB');
+
+  return {
+    title: fields.TITLE as string,
+    company: fields.COMPANY as string | undefined,
+    period: fields.PERIOD as string | undefined,
+    description: fields.DESCRIPTION as string | undefined,
+    bullets: fields.BULLETS as string[] | undefined,
+  };
 }
 
 function parseExperience(state: ParserState): ExperienceSection {
   expectEndpoint(state, 'EXPERIENCE', false);
   const jobs: Job[] = [];
-  
+
   while (state.index < state.tokens.length) {
     const token = peek(state);
     if (token.type === 'ENDPOINT_CLOSE' && token.value === 'EXPERIENCE') {
@@ -291,70 +297,51 @@ function parseExperience(state: ParserState): ExperienceSection {
     }
     if (token.type === 'ENDPOINT_OPEN' && token.value === 'JOB') {
       jobs.push(parseJob(state));
+    } else if (token.type === 'CONTENT') {
+      throw new ParseError(
+        'Free content not allowed directly in EXPERIENCE. Use JOB endpoints.',
+        token.line,
+        token.column
+      );
     } else {
       consume(state);
     }
   }
-  
+
   expectEndpoint(state, 'EXPERIENCE', true);
   return { jobs };
 }
 
 function parseDegree(state: ParserState): Degree {
   expectEndpoint(state, 'DEGREE', false);
-  
-  let institution = '';
-  let course = '';
-  let period: string | undefined;
 
-  while (state.index < state.tokens.length) {
-    const token = peek(state);
-    
-    if (token.type === 'ENDPOINT_CLOSE' && token.value === 'DEGREE') {
-      break;
-    }
-    
-    if (token.type === 'ENDPOINT_OPEN') {
-      if (token.value === 'INSTITUTION') {
-        consume(state);
-        institution = parseContentUntil(state, 'INSTITUTION');
-        expectEndpoint(state, 'INSTITUTION', true);
-      } else if (token.value === 'COURSE') {
-        consume(state);
-        course = parseContentUntil(state, 'COURSE');
-        expectEndpoint(state, 'COURSE', true);
-      } else if (token.value === 'PERIOD') {
-        consume(state);
-        period = parseContentUntil(state, 'PERIOD');
-        expectEndpoint(state, 'PERIOD', true);
-      } else {
-        throw new ParseError(`Unknown endpoint ${token.value} in DEGREE`, token.line, token.column);
-      }
-    } else if (token.type === 'CONTENT') {
-      if (!course) {
-        course = token.value.trim();
-      } else if (!institution) {
-        institution = token.value.trim();
-      }
-      consume(state);
-    } else {
-      consume(state);
-    }
+  const degreeFields: EntityFieldConfig[] = [
+    { name: 'COURSE', required: false },
+    { name: 'INSTITUTION', required: false },
+    { name: 'PERIOD', required: false },
+  ];
+
+  const fields = parseEntityFields(state, 'DEGREE', degreeFields, 'DEGREE');
+
+  if (!fields.COURSE && !fields.INSTITUTION) {
+    throw new ParseError(
+      'DEGREE must have COURSE or INSTITUTION',
+      peek(state).line,
+      peek(state).column
+    );
   }
-  
-  expectEndpoint(state, 'DEGREE', true);
-  
-  if (!course && !institution) {
-    throw new ParseError('DEGREE must have COURSE or INSTITUTION', peek(state).line, peek(state).column);
-  }
-  
-  return { institution, course, period };
+
+  return {
+    course: fields.COURSE as string | undefined,
+    institution: fields.INSTITUTION as string | undefined,
+    period: fields.PERIOD as string | undefined,
+  };
 }
 
 function parseEducation(state: ParserState): EducationSection {
   expectEndpoint(state, 'EDUCATION', false);
   const degrees: Degree[] = [];
-  
+
   while (state.index < state.tokens.length) {
     const token = peek(state);
     if (token.type === 'ENDPOINT_CLOSE' && token.value === 'EDUCATION') {
@@ -362,65 +349,41 @@ function parseEducation(state: ParserState): EducationSection {
     }
     if (token.type === 'ENDPOINT_OPEN' && token.value === 'DEGREE') {
       degrees.push(parseDegree(state));
+    } else if (token.type === 'CONTENT') {
+      throw new ParseError(
+        'Free content not allowed directly in EDUCATION. Use DEGREE endpoints.',
+        token.line,
+        token.column
+      );
     } else {
       consume(state);
     }
   }
-  
+
   expectEndpoint(state, 'EDUCATION', true);
   return { degrees };
 }
 
 function parseSkillCategory(state: ParserState): SkillCategory {
   expectEndpoint(state, 'CATEGORY', false);
-  
-  let name = '';
-  let technologies = '';
 
-  while (state.index < state.tokens.length) {
-    const token = peek(state);
-    
-    if (token.type === 'ENDPOINT_CLOSE' && token.value === 'CATEGORY') {
-      break;
-    }
-    
-    if (token.type === 'ENDPOINT_OPEN') {
-      if (token.value === 'NAME') {
-        consume(state);
-        name = parseContentUntil(state, 'NAME');
-        expectEndpoint(state, 'NAME', true);
-      } else if (token.value === 'TECHNOLOGIES') {
-        consume(state);
-        technologies = parseContentUntil(state, 'TECHNOLOGIES');
-        expectEndpoint(state, 'TECHNOLOGIES', true);
-      } else {
-        throw new ParseError(`Unknown endpoint ${token.value} in CATEGORY`, token.line, token.column);
-      }
-    } else if (token.type === 'CONTENT') {
-      if (!name) {
-        name = token.value.trim();
-      } else if (!technologies) {
-        technologies = token.value.trim();
-      }
-      consume(state);
-    } else {
-      consume(state);
-    }
-  }
-  
-  expectEndpoint(state, 'CATEGORY', true);
-  
-  if (!name) {
-    throw new ParseError('CATEGORY must have a NAME', peek(state).line, peek(state).column);
-  }
-  
-  return { name, technologies };
+  const categoryFields: EntityFieldConfig[] = [
+    { name: 'NAME', required: true },
+    { name: 'TECHNOLOGIES', required: false },
+  ];
+
+  const fields = parseEntityFields(state, 'CATEGORY', categoryFields, 'CATEGORY');
+
+  return {
+    name: fields.NAME as string,
+    technologies: fields.TECHNOLOGIES as string | undefined,
+  };
 }
 
 function parseSkills(state: ParserState): SkillsSection {
   expectEndpoint(state, 'SKILLS', false);
   const categories: SkillCategory[] = [];
-  
+
   while (state.index < state.tokens.length) {
     const token = peek(state);
     if (token.type === 'ENDPOINT_CLOSE' && token.value === 'SKILLS') {
@@ -428,94 +391,196 @@ function parseSkills(state: ParserState): SkillsSection {
     }
     if (token.type === 'ENDPOINT_OPEN' && token.value === 'CATEGORY') {
       categories.push(parseSkillCategory(state));
+    } else if (token.type === 'CONTENT') {
+      throw new ParseError(
+        'Free content not allowed directly in SKILLS. Use CATEGORY endpoints.',
+        token.line,
+        token.column
+      );
     } else {
       consume(state);
     }
   }
-  
+
   expectEndpoint(state, 'SKILLS', true);
   return { categories };
 }
 
-function parseListSection(state: ParserState, sectionName: string): string[] {
-  expectEndpoint(state, sectionName, false);
-  const items: string[] = [];
-  
+function parseCertification(state: ParserState): Certification {
+  expectEndpoint(state, 'CERTIFICATION', false);
+
+  const certFields: EntityFieldConfig[] = [
+    { name: 'NAME', required: true },
+    { name: 'ISSUER', required: false },
+    { name: 'YEAR', required: false },
+  ];
+
+  const fields = parseEntityFields(state, 'CERTIFICATION', certFields, 'CERTIFICATION');
+
+  return {
+    name: fields.NAME as string,
+    issuer: fields.ISSUER as string | undefined,
+    year: fields.YEAR as string | undefined,
+  };
+}
+
+function parseCertifications(state: ParserState): CertificationsSection {
+  expectEndpoint(state, 'CERTIFICATIONS', false);
+  const certifications: Certification[] = [];
+
   while (state.index < state.tokens.length) {
     const token = peek(state);
-    if (token.type === 'ENDPOINT_CLOSE' && token.value === sectionName) {
+    if (token.type === 'ENDPOINT_CLOSE' && token.value === 'CERTIFICATIONS') {
       break;
     }
-    if (token.type === 'CONTENT') {
-      items.push(token.value.trim());
+    if (token.type === 'ENDPOINT_OPEN' && token.value === 'CERTIFICATION') {
+      certifications.push(parseCertification(state));
+    } else if (token.type === 'CONTENT') {
+      throw new ParseError(
+        'Free content not allowed directly in CERTIFICATIONS. Use CERTIFICATION endpoints.',
+        token.line,
+        token.column
+      );
+    } else {
+      consume(state);
     }
-    consume(state);
   }
-  
-  expectEndpoint(state, sectionName, true);
-  return items;
+
+  expectEndpoint(state, 'CERTIFICATIONS', true);
+  return { certifications };
+}
+
+function parseLanguage(state: ParserState): Language {
+  expectEndpoint(state, 'LANGUAGE', false);
+
+  const langFields: EntityFieldConfig[] = [
+    { name: 'NAME', required: true },
+    { name: 'PROFICIENCY', required: false },
+  ];
+
+  const fields = parseEntityFields(state, 'LANGUAGE', langFields, 'LANGUAGE');
+
+  return {
+    name: fields.NAME as string,
+    proficiency: fields.PROFICIENCY as string | undefined,
+  };
+}
+
+function parseLanguages(state: ParserState): LanguagesSection {
+  expectEndpoint(state, 'LANGUAGES', false);
+  const languages: Language[] = [];
+
+  while (state.index < state.tokens.length) {
+    const token = peek(state);
+    if (token.type === 'ENDPOINT_CLOSE' && token.value === 'LANGUAGES') {
+      break;
+    }
+    if (token.type === 'ENDPOINT_OPEN' && token.value === 'LANGUAGE') {
+      languages.push(parseLanguage(state));
+    } else if (token.type === 'CONTENT') {
+      throw new ParseError(
+        'Free content not allowed directly in LANGUAGES. Use LANGUAGE endpoints.',
+        token.line,
+        token.column
+      );
+    } else {
+      consume(state);
+    }
+  }
+
+  expectEndpoint(state, 'LANGUAGES', true);
+  return { languages };
 }
 
 export function parseResume(rawText: string): StructuredResume {
   const tokens = tokenize(rawText);
-  const state: ParserState = { tokens, index: 0, sections: [], currentSection: null };
-  
+  const state: ParserState = {
+    tokens,
+    index: 0,
+    sections: [],
+    seenRootSections: new Set(),
+  };
+
   while (state.index < state.tokens.length) {
     const token = peek(state);
-    
+
     if (token.type === 'EOF') {
       break;
     }
-    
+
     if (token.type === 'ENDPOINT_OPEN') {
-      switch (token.value) {
+      const sectionName = token.value;
+
+      if (state.seenRootSections.has(sectionName)) {
+        throw new ParseError(
+          `Duplicate root section ${sectionName}`,
+          token.line,
+          token.column
+        );
+      }
+
+      switch (sectionName) {
         case 'HEADER': {
           const header = parseHeader(state);
           state.sections.push({ type: 'header', data: header });
+          state.seenRootSections.add('HEADER');
           break;
         }
         case 'SUMMARY': {
           const summary = parseSummary(state);
           state.sections.push({ type: 'summary', data: summary });
+          state.seenRootSections.add('SUMMARY');
           break;
         }
         case 'PROJECTS': {
           const projects = parseProjects(state);
           state.sections.push({ type: 'projects', data: projects });
+          state.seenRootSections.add('PROJECTS');
           break;
         }
         case 'EXPERIENCE': {
           const experience = parseExperience(state);
           state.sections.push({ type: 'experience', data: experience });
+          state.seenRootSections.add('EXPERIENCE');
           break;
         }
         case 'EDUCATION': {
           const education = parseEducation(state);
           state.sections.push({ type: 'education', data: education });
+          state.seenRootSections.add('EDUCATION');
           break;
         }
         case 'SKILLS': {
           const skills = parseSkills(state);
           state.sections.push({ type: 'skills', data: skills });
+          state.seenRootSections.add('SKILLS');
           break;
         }
         case 'CERTIFICATIONS': {
-          const items = parseListSection(state, 'CERTIFICATIONS');
-          state.sections.push({ type: 'certifications', data: { items } });
+          const certifications = parseCertifications(state);
+          state.sections.push({ type: 'certifications', data: certifications });
+          state.seenRootSections.add('CERTIFICATIONS');
           break;
         }
         case 'LANGUAGES': {
-          const items = parseListSection(state, 'LANGUAGES');
-          state.sections.push({ type: 'languages', data: { items } });
+          const languages = parseLanguages(state);
+          state.sections.push({ type: 'languages', data: languages });
+          state.seenRootSections.add('LANGUAGES');
           break;
         }
         default:
-          throw new ParseError(`Unknown section endpoint ${token.value}`, token.line, token.column);
+          throw new ParseError(`Unknown section endpoint ${sectionName}`, token.line, token.column);
       }
+    } else if (token.type === 'CONTENT') {
+      throw new ParseError(
+        'Free content not allowed at root level. Use section endpoints.',
+        token.line,
+        token.column
+      );
     } else {
       consume(state);
     }
   }
-  
+
   return { sections: state.sections };
 }
