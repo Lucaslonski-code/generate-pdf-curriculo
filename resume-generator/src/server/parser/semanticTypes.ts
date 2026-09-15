@@ -1,16 +1,12 @@
-export interface ContactInfo {
+export interface Header {
+  name: string;
+  role?: string;
   email?: string;
   phone?: string;
   linkedin?: string;
   github?: string;
   website?: string;
   location?: string;
-}
-
-export interface Header {
-  name: string;
-  role?: string;
-  contact: ContactInfo;
 }
 
 export interface Summary {
@@ -32,7 +28,7 @@ export interface Job {
   company?: string;
   period?: string;
   description?: string;
-  bullets: string[];
+  bullets?: string[];
 }
 
 export interface ExperienceSection {
@@ -40,8 +36,8 @@ export interface ExperienceSection {
 }
 
 export interface Degree {
-  institution: string;
-  course: string;
+  course?: string;
+  institution?: string;
   period?: string;
 }
 
@@ -51,19 +47,30 @@ export interface EducationSection {
 
 export interface SkillCategory {
   name: string;
-  technologies: string;
+  technologies?: string;
 }
 
 export interface SkillsSection {
   categories: SkillCategory[];
 }
 
+export interface Certification {
+  name: string;
+  issuer?: string;
+  year?: string;
+}
+
 export interface CertificationsSection {
-  items: string[];
+  certifications: Certification[];
+}
+
+export interface Language {
+  name: string;
+  proficiency?: string;
 }
 
 export interface LanguagesSection {
-  items: string[];
+  languages: Language[];
 }
 
 export type ResumeSection =
